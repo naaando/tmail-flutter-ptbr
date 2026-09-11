@@ -997,6 +997,8 @@ class MailboxDashBoardController extends ReloadableController
 
     if (isLabelCapabilitySupported) {
       labelController.checkLabelSettingState(session, currentAccountId);
+    } else if (canUseEventSourcePush(session, currentAccountId)) {
+      injectEventSource(session: session, accountId: currentAccountId);
     } else {
       injectWebSocket(session: session, accountId: currentAccountId);
     }

@@ -12,12 +12,14 @@ env:
   FLUTTER_VERSION: 3.38.9
   # Test paths to run on the Chrome platform, one per line, relative to repo
   # root. Each path's leading segment must be its package directory (e.g.
-  # "core"). Add more lines here as needed.
+  # "core"). Tests in the root package use a leading "./" (e.g. "./test/...").
+  # Add more lines here as needed.
   CHROME_TEST_PATHS: |
     core/test/data/network/download/download_manager_test.dart
     workplace/test/presentation/mixin/web_window_message_mixin_web_test.dart
     workplace/test/presentation/view/drive_intent_web_view_modal_web_test.dart
     core/test/utils/html/editor_script/quoted_reply_enter_handler_script_browser_test.dart
+    ./test/features/push_notification/data/network/event_source/event_source_transport_browser_test.dart
 
 jobs:
   analyze-test:
