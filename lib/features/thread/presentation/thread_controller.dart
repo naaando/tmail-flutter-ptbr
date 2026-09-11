@@ -308,7 +308,7 @@ class ThreadController extends BaseController with EmailActionController {
     );
   }
 
-  static const _emailChangesPollingInterval = Duration(seconds: 15);
+  static const _emailChangesPollingInterval = Duration(seconds: 10);
 
   @visibleForTesting
   static bool disableEmailChangesPollingForTesting = false;
