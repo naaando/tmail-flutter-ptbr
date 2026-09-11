@@ -91,6 +91,27 @@ class AuthorizationInterceptors extends QueuedInterceptorsWrapper {
   TokenOIDC? get currentToken =>
       _authenticationType == AuthenticationType.oidc ? _token : null;
 
+  /// The `Authorization` header value the interceptor would attach to an
+  /// outgoing request. Exposed for transports that cannot rely on Dio, such as
+  /// the browser `fetch` stream used by the EventSource push channel.
+  String? get authorizationHeader {
+    switch (_authenticationType) {
+      case AuthenticationType.basic:
+        final authorization = _authorization;
+        return authorization == null
+            ? null
+            : _getAuthorizationAsBasicHeader(authorization);
+      case AuthenticationType.oidc:
+        final token = _token;
+        if (token != null && token.isTokenValid()) {
+          return _getTokenAsBearerHeader(token.token);
+        }
+        return null;
+      case AuthenticationType.none:
+        return null;
+    }
+  }
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     switch(_authenticationType) {

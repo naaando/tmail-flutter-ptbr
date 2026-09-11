@@ -9,6 +9,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
+import 'package:jmap_dart_client/jmap/core/capability/capability_identifier.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart' as jmap;
 import 'package:jmap_dart_client/jmap/core/unsigned_int.dart';
@@ -38,6 +39,7 @@ import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/sear
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/notifier/search_view_state_notifier.dart';
 import 'package:tmail_ui_user/features/network_connection/presentation/network_connection_controller.dart'
   if (dart.library.html) 'package:tmail_ui_user/features/network_connection/presentation/web_network_connection_controller.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/controller/event_source_controller.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/websocket/web_socket_message.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/websocket/web_socket_queue_handler.dart';
 import 'package:tmail_ui_user/features/labels/presentation/delegates/add_list_label_to_list_emails_delegate.dart';
@@ -134,6 +136,8 @@ class ThreadController extends BaseController with EmailActionController {
   StreamSubscription<MailListShortcutActionViewEvent>? shortcutActionEventSubscription;
 
   ProviderSubscription<PreferencesSetting>? _localSettingsSubscription;
+  Timer? _emailChangesPollingTimer;
+  bool _isEmailChangesPolling = false;
   late final SearchExecutionObserver _searchExecutionObserver =
       ThreadSearchExecutionObserver(this);
   @visibleForTesting
@@ -201,6 +205,7 @@ class ThreadController extends BaseController with EmailActionController {
   @override
   void onReady() {
     consumeState(Stream.value(Right(GetAllEmailLoading())));
+    _startEmailChangesPolling();
     super.onReady();
   }
 
@@ -213,6 +218,7 @@ class ThreadController extends BaseController with EmailActionController {
       onKeyboardShortcutDispose();
     }
     _webSocketQueueHandler?.dispose();
+    stopEmailChangesPolling();
     _localSettingsSubscription?.close();
     _searchStateSubscription?.close();
     if (PlatformInfo.isWeb) {
@@ -300,6 +306,75 @@ class ThreadController extends BaseController with EmailActionController {
       processMessageCallback: _handleWebSocketMessage,
       onErrorCallback: onError,
     );
+  }
+
+  static const _emailChangesPollingInterval = Duration(seconds: 10);
+
+  @visibleForTesting
+  static bool disableEmailChangesPollingForTesting = false;
+
+  @visibleForTesting
+  bool get shouldUseEmailChangesPolling {
+    if (!PlatformInfo.isWeb) return false;
+
+    final currentSession = _session;
+    final currentAccountId = _accountId;
+    if (currentSession == null || currentAccountId == null) return false;
+
+    final supportsWebSocketTicket = currentSession.accounts[currentAccountId]
+            ?.accountCapabilities
+            .containsKey(CapabilityIdentifier.jmapWebSocketTicket) ==
+        true;
+    if (supportsWebSocketTicket) return false;
+
+    // The EventSource push channel provides realtime updates. Polling only
+    // covers the gaps while it has not connected yet or is reconnecting.
+    return !EventSourceController.instance.isConnected;
+  }
+
+  void _startEmailChangesPolling() {
+    if (!PlatformInfo.isWeb || _emailChangesPollingTimer != null) return;
+    if (disableEmailChangesPollingForTesting) return;
+
+    _emailChangesPollingTimer = Timer.periodic(
+      _emailChangesPollingInterval,
+      (_) => unawaited(_pollEmailChanges()),
+    );
+  }
+
+  @visibleForTesting
+  void stopEmailChangesPolling() {
+    _emailChangesPollingTimer?.cancel();
+    _emailChangesPollingTimer = null;
+  }
+
+  Future<void> _pollEmailChanges() async {
+    if (!shouldUseEmailChangesPolling ||
+        _isEmailChangesPolling ||
+        _isSearchEngaged ||
+        _session == null ||
+        _accountId == null ||
+        mailboxDashBoardController.currentEmailState == null) {
+      return;
+    }
+
+    _isEmailChangesPolling = true;
+    try {
+      if (selectedMailbox?.isVirtualFolder == true) {
+        await _refreshChangeListEmailsInVirtualFolder();
+      } else {
+        await _refreshChangeListEmail();
+      }
+    } catch (error, stackTrace) {
+      logWarning('ThreadController::_pollEmailChanges(): $error');
+      logError(
+        'ThreadController::_pollEmailChanges():Error',
+        exception: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _isEmailChangesPolling = false;
+    }
   }
 
   void _resetLoadingMore() {

@@ -51,6 +51,7 @@ import 'package:tmail_ui_user/features/push_notification/presentation/bindings/w
 import 'package:tmail_ui_user/features/push_notification/presentation/config/fcm_configuration.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_message_controller.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_token_controller.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/controller/event_source_controller.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/web_socket_controller.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/notification/local_notification_manager.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/services/fcm_receiver.dart';
@@ -453,6 +454,39 @@ abstract class BaseController extends GetxController
       );
     } catch(e) {
       logWarning('$runtimeType::injectWebSocket(): exception: $e');
+    }
+  }
+
+  /// Whether the browser should receive push over the core JMAP
+  /// `eventSourceUrl` instead of the WebSocket channel.
+  ///
+  /// The WebSocket controller authenticates by exchanging a ticket issued
+  /// through [CapabilityIdentifier.jmapWebSocketTicket], a Linagora extension
+  /// that non-Linagora servers such as Stalwart do not advertise. When that
+  /// capability is missing, fall back to the standard EventSource endpoint.
+  bool canUseEventSourcePush(Session? session, AccountId? accountId) {
+    if (!PlatformInfo.isWeb) return false;
+    if (session == null || accountId == null) return false;
+    if (session.eventSourceUrl.toString().trim().isEmpty) return false;
+
+    return !CapabilityIdentifier.jmapWebSocketTicket.isSupported(session, accountId);
+  }
+
+  void injectEventSource({
+    Session? session,
+    AccountId? accountId,
+    bool isLabelAvailable = false,
+  }) {
+    try {
+      log('$runtimeType::injectEventSource: isLabelAvailable is $isLabelAvailable');
+      EventSourceController.instance.initialize(
+        accountId: accountId,
+        session: session,
+        isLabelAvailable: isLabelAvailable,
+        authorizationHeaderProvider: () => authorizationInterceptors.authorizationHeader,
+      );
+    } catch(e) {
+      logWarning('$runtimeType::injectEventSource(): exception: $e');
     }
   }
 

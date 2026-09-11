@@ -183,6 +183,7 @@ void main() {
 
   setUpAll(() {
     Get.testMode = true;
+    ThreadController.disableEmailChangesPollingForTesting = true;
     // Mock base controller
     mockCachingManager = MockCachingManager();
     mockLanguageCacheManager = MockLanguageCacheManager();
@@ -264,6 +265,18 @@ void main() {
   }
 
   group('ThreadController::test', () {
+    test('uses HTTP email polling when websocket tickets are unavailable', () {
+      PlatformInfo.isTestingForWeb = true;
+      addTearDown(() => PlatformInfo.isTestingForWeb = false);
+
+      when(mockMailboxDashBoardController.sessionCurrent)
+          .thenReturn(SessionFixtures.aliceSession);
+      when(mockMailboxDashBoardController.accountId)
+          .thenReturn(Rxn(AccountFixtures.aliceAccountId));
+
+      expect(threadController.shouldUseEmailChangesPolling, isTrue);
+    });
+
     group('validateListEmailsLoadMore::test', () {
       final MailboxId selectedMailboxId = MailboxId(Id('mailboxA'));
       final emailsInCurrentMailbox = <PresentationEmail>[];
