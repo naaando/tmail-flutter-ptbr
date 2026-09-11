@@ -183,6 +183,7 @@ void main() {
 
   setUpAll(() {
     Get.testMode = true;
+    ThreadController.disableEmailChangesPollingForTesting = true;
     // Mock base controller
     mockCachingManager = MockCachingManager();
     mockLanguageCacheManager = MockLanguageCacheManager();

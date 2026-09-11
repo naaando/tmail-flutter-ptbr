@@ -218,8 +218,7 @@ class ThreadController extends BaseController with EmailActionController {
       onKeyboardShortcutDispose();
     }
     _webSocketQueueHandler?.dispose();
-    _emailChangesPollingTimer?.cancel();
-    _emailChangesPollingTimer = null;
+    stopEmailChangesPolling();
     _localSettingsSubscription?.close();
     _searchStateSubscription?.close();
     if (PlatformInfo.isWeb) {
@@ -312,6 +311,9 @@ class ThreadController extends BaseController with EmailActionController {
   static const _emailChangesPollingInterval = Duration(seconds: 15);
 
   @visibleForTesting
+  static bool disableEmailChangesPollingForTesting = false;
+
+  @visibleForTesting
   bool get shouldUseEmailChangesPolling {
     if (!PlatformInfo.isWeb) return false;
 
@@ -332,11 +334,18 @@ class ThreadController extends BaseController with EmailActionController {
 
   void _startEmailChangesPolling() {
     if (!PlatformInfo.isWeb || _emailChangesPollingTimer != null) return;
+    if (disableEmailChangesPollingForTesting) return;
 
     _emailChangesPollingTimer = Timer.periodic(
       _emailChangesPollingInterval,
       (_) => unawaited(_pollEmailChanges()),
     );
+  }
+
+  @visibleForTesting
+  void stopEmailChangesPolling() {
+    _emailChangesPollingTimer?.cancel();
+    _emailChangesPollingTimer = null;
   }
 
   Future<void> _pollEmailChanges() async {
