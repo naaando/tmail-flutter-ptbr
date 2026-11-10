@@ -16,15 +16,7 @@ class EditEmailRuleFilterRequest with EquatableMixin {
             if (rule.id == tMailRuleChanged.id) {
               return tMailRuleChanged;
             } 
-            if (rule.conditionGroup != null) {
-              return TMailRule(
-                id: rule.id,
-                name: rule.name,
-                action: rule.action,
-                conditionGroup: rule.conditionGroup,
-              );
-            }
-            return rule;
+            return rule.withoutLegacyCondition();
           })
         .toList();
 

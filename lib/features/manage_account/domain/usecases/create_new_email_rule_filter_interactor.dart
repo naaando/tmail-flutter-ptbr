@@ -5,6 +5,7 @@ import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/create_new_email_rule_filter_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/repository/rule_filter_repository.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/create_new_rule_filter_state.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/extensions/rule_filter_repository_status_extension.dart';
 
 class CreateNewEmailRuleFilterInteractor {
   final RuleFilterRepository _ruleFilterRepository;
@@ -19,7 +20,8 @@ class CreateNewEmailRuleFilterInteractor {
       final newListRules = await _ruleFilterRepository.createNewEmailRuleFilter(
           accountId,
           ruleFilterRequest);
-      yield Right(CreateNewRuleFilterSuccess(newListRules));
+      final status = await _ruleFilterRepository.getRulesStatusOrNull(accountId);
+      yield Right(CreateNewRuleFilterSuccess(newListRules, status: status));
     } catch (exception) {
       yield Left(CreateNewRuleFilterFailure(exception));
     }

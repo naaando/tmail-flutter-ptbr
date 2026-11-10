@@ -14,6 +14,9 @@ class RuleFilterActionWidget extends StatelessWidget {
   final bool isMobile;
   final OnDeleteRuleConditionAction onDeleteRuleConditionAction;
   final EmailRuleFilterAction? actionSelected;
+
+  /// Actions offered in the dropdown; defaults to every supported action.
+  final List<EmailRuleFilterAction>? actionList;
   final PresentationMailbox? mailboxSelected;
   final String? errorValue;
   final VoidCallback? onTapActionDetailedCallback;
@@ -29,6 +32,7 @@ class RuleFilterActionWidget extends StatelessWidget {
     required this.isMobile,
     required this.onDeleteRuleConditionAction,
     this.actionSelected,
+    this.actionList,
     this.mailboxSelected,
     this.errorValue,
     this.forwardEmailEditingController,
@@ -52,9 +56,10 @@ class RuleFilterActionWidget extends StatelessWidget {
         height: 72,
         alignment: Alignment.center,
         child: RuleFilterActionRow(
-          actionList: EmailRuleFilterAction.values
-              .where((action) => action.isSupported)
-              .toList(),
+          actionList: actionList ??
+              EmailRuleFilterAction.values
+                  .where((action) => action.isSupported)
+                  .toList(),
           actionSelected: actionSelected,
           onActionChanged: onActionChanged,
           mailboxSelected: mailboxSelected,

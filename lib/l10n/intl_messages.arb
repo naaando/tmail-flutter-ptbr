@@ -1,5 +1,5 @@
 {
-  "@@last_modified": "2026-08-24T15:11:50.161826",
+  "@@last_modified": "2026-11-10T20:20:40.285610",
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",
@@ -2214,6 +2214,170 @@
   },
   "deleteEmailRule": "Delete rule",
   "@deleteEmailRule": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesNewBlockedByVacation": "The vacation reply is on. New rules will be saved but only run after it is turned off, because the server runs one filter at a time.",
+  "@emailRulesNewBlockedByVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesNewBlockedByOtherScript": "The filter \"{scriptName}\" is active on the server. New rules will be saved but will not run while it is active. The webmail does not turn off filters created elsewhere.",
+  "@emailRulesNewBlockedByOtherScript": {
+    "type": "text",
+    "placeholders_order": [
+      "scriptName"
+    ],
+    "placeholders": {
+      "scriptName": {}
+    }
+  },
+  "emailRulesStatusInactive": "Your rules are saved but not running.",
+  "@emailRulesStatusInactive": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesActivate": "Activate rules",
+  "@emailRulesActivate": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesBlockedByVacation": "Rules are paused while the vacation reply is on, because the server runs one filter at a time. Turn off the vacation reply and then activate the rules here.",
+  "@emailRulesBlockedByVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesBlockedByOtherScript": "Rules are saved but not running because the filter \"{scriptName}\" is active on the server. The webmail does not turn off filters created elsewhere.",
+  "@emailRulesBlockedByOtherScript": {
+    "type": "text",
+    "placeholders_order": [
+      "scriptName"
+    ],
+    "placeholders": {
+      "scriptName": {}
+    }
+  },
+  "emailRulesReadOnlyModified": "These rules were changed outside the webmail, so they can only be edited where they were changed. Nothing was overwritten.",
+  "@emailRulesReadOnlyModified": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesReadOnlyNameConflict": "The server already has a filter named \"{scriptName}\" that the webmail did not create. Rename or remove it to manage rules here.",
+  "@emailRulesReadOnlyNameConflict": {
+    "type": "text",
+    "placeholders_order": [
+      "scriptName"
+    ],
+    "placeholders": {
+      "scriptName": {}
+    }
+  },
+  "emailRulesConflictError": "The rules changed in another session. The list was reloaded; review it and try again.",
+  "@emailRulesConflictError": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesScriptRejected": "The server rejected the rules: {detail}",
+  "@emailRulesScriptRejected": {
+    "type": "text",
+    "placeholders_order": [
+      "detail"
+    ],
+    "placeholders": {
+      "detail": {}
+    }
+  },
+  "emailRulesTooLarge": "The rules exceed the size the server accepts. Remove or simplify some rules.",
+  "@emailRulesTooLarge": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesVerificationFailed": "The server did not confirm the change. Reload to check the current rules.",
+  "@emailRulesVerificationFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesExtensionUnsupported": "Your mail server does not support this rule ({extensions}).",
+  "@emailRulesExtensionUnsupported": {
+    "type": "text",
+    "placeholders_order": [
+      "extensions"
+    ],
+    "placeholders": {
+      "extensions": {}
+    }
+  },
+  "emailRulesSavedButInactive": "Rules saved, but they are not running yet.",
+  "@emailRulesSavedButInactive": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesUpdated": "Rules updated",
+  "@emailRulesUpdated": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesOrderHint": "Rules run from top to bottom.",
+  "@emailRulesOrderHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "moveRuleUp": "Move up",
+  "@moveRuleUp": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "moveRuleDown": "Move down",
+  "@moveRuleDown": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "enableRule": "Enable rule",
+  "@enableRule": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "disableRule": "Disable rule",
+  "@disableRule": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "ruleDisabled": "Disabled",
+  "@ruleDisabled": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "stopProcessingOtherRules": "Do not apply the following rules",
+  "@stopProcessingOtherRules": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "stopProcessingOtherRulesHint": "When this rule applies, the rules below it are skipped.",
+  "@stopProcessingOtherRulesHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "actionUnavailableOnServer": "Not supported by your mail server",
+  "@actionUnavailableOnServer": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

@@ -9,17 +9,22 @@ import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:rule_filter/rule_filter/tmail_rule.dart';
 import 'package:tmail_ui_user/features/base/base_controller.dart';
 import 'package:tmail_ui_user/features/base/mixin/message_dialog_action_manager.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/exceptions/sieve_rules_exceptions.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/create_new_email_rule_filter_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/delete_email_rule_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/edit_email_rule_filter_request.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_status.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/create_new_rule_filter_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/delete_email_rule_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/edit_email_rule_filter_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/get_all_rules_state.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/state/update_email_rules_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/create_new_email_rule_filter_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/delete_email_rule_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/edit_email_rule_filter_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_rules_interactor.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/usecases/update_email_rules_interactor.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/email_rules_error_message.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/manage_account_dashboard_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/model/context_item_email_rule_type_action.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/model/email_rule_action_type.dart';
@@ -36,10 +41,21 @@ class EmailRulesController extends BaseController {
   DeleteEmailRuleInteractor? _deleteEmailRuleInteractor;
   CreateNewEmailRuleFilterInteractor? _createNewEmailRuleFilterInteractor;
   EditEmailRuleFilterInteractor? _editEmailRuleFilterInteractor;
+  UpdateEmailRulesInteractor? _updateEmailRulesInteractor;
 
   final _accountDashBoardController = Get.find<ManageAccountDashBoardController>();
 
   final listEmailRule = <TMailRule>[].obs;
+
+  /// Server-side state reported by the Sieve backend (`null` for Linagora).
+  final emailRulesStatus = Rxn<EmailRulesStatus>();
+
+  final isUpdatingRules = false.obs;
+
+  bool get isReadOnly => emailRulesStatus.value?.isReadOnly == true;
+
+  bool get isSieveBackend =>
+      _accountDashBoardController.emailRulesBackend.isSieve;
 
   bool get isLoading => viewState.value.fold(
     (failure) => false,
@@ -54,6 +70,7 @@ class EmailRulesController extends BaseController {
       _deleteEmailRuleInteractor = Get.find<DeleteEmailRuleInteractor>();
       _createNewEmailRuleFilterInteractor = Get.find<CreateNewEmailRuleFilterInteractor>();
       _editEmailRuleFilterInteractor = Get.find<EditEmailRuleFilterInteractor>();
+      _updateEmailRulesInteractor = Get.find<UpdateEmailRulesInteractor>();
     } catch (e) {
       logWarning('EmailRulesController::onInit(): ${e.toString()}');
     }
@@ -68,9 +85,10 @@ class EmailRulesController extends BaseController {
   @override
   void handleSuccessViewState(Success success) {
     if (success is GetAllRulesSuccess) {
-      if (success.rules?.isNotEmpty == true) {
-        listEmailRule.addAll(success.rules!);
-      }
+      listEmailRule.value = success.rules ?? <TMailRule>[];
+      emailRulesStatus.value = success.status;
+    } else if (success is UpdateEmailRulesSuccess) {
+      _handleUpdateEmailRulesSuccess(success);
     } else if (success is DeleteEmailRuleSuccess) {
       _handleDeleteEmailRuleSuccess(success);
     } else if (success is CreateNewRuleFilterSuccess) {
@@ -86,12 +104,117 @@ class EmailRulesController extends BaseController {
   void handleFailureViewState(Failure failure) {
     if (failure is GetAllRulesFailure) {
       listEmailRule.clear();
+      _showRulesError(failure.exception);
+    } else if (failure is CreateNewRuleFilterFailure ||
+        failure is EditEmailRuleFilterFailure ||
+        failure is DeleteEmailRuleFailure ||
+        failure is UpdateEmailRulesFailure) {
+      isUpdatingRules.value = false;
+      final exception = (failure as FeatureFailure).exception;
+      if (!_showRulesError(exception)) {
+        super.handleFailureViewState(failure);
+      }
+      if (exception is SieveRulesConflictException ||
+          exception is SieveRulesVerificationException ||
+          exception is SieveRulesReadOnlyException) {
+        // Show what the server holds now instead of the stale local list.
+        _getAllRules();
+      }
     } else {
       super.handleFailureViewState(failure);
     }
   }
 
+  /// Shows the specific message of a Sieve failure. Returns false for other
+  /// errors, which keep the generic handling.
+  bool _showRulesError(dynamic exception) {
+    if (currentOverlayContext == null || currentContext == null) return false;
+    final message = EmailRulesErrorMessage.of(
+      AppLocalizations.of(currentContext!),
+      exception,
+    );
+    if (message == null) return false;
+    appToast.showToastErrorMessage(currentOverlayContext!, message);
+    return true;
+  }
+
+  bool _blockIfReadOnly() {
+    final status = emailRulesStatus.value;
+    if (status?.isReadOnly != true) return false;
+    _showRulesError(SieveRulesReadOnlyException(status!.readOnlyReason!));
+    return true;
+  }
+
+  /// Toast after a write: a Sieve script that was saved but is not running
+  /// must not look like a plain success.
+  void _showSavedMessage(String successMessage, EmailRulesStatus? status) {
+    if (currentOverlayContext == null || currentContext == null) return;
+    if (status != null && !status.isActive) {
+      appToast.showToastWarningMessage(
+        currentOverlayContext!,
+        AppLocalizations.of(currentContext!).emailRulesSavedButInactive,
+      );
+    } else {
+      appToast.showToastSuccessMessage(currentOverlayContext!, successMessage);
+    }
+  }
+
+  void moveRule(TMailRule rule, int offset) {
+    final index = _indexOf(rule);
+    final target = index + offset;
+    if (index < 0 || target < 0 || target >= listEmailRule.length) return;
+    final rules = List<TMailRule>.of(listEmailRule);
+    final moved = rules.removeAt(index);
+    rules.insert(target, moved);
+    _updateRules(rules);
+  }
+
+  void toggleRule(TMailRule rule) {
+    final index = _indexOf(rule);
+    if (index < 0) return;
+    final rules = List<TMailRule>.of(listEmailRule);
+    rules[index] = rules[index].copyWith(isEnabled: !rules[index].isEnabled);
+    _updateRules(rules);
+  }
+
+  /// Writes the same rules again; the backend activates the script when no
+  /// other script is active.
+  void activateRules() => _updateRules(List<TMailRule>.of(listEmailRule));
+
+  int _indexOf(TMailRule rule) {
+    final index = int.tryParse(rule.id?.id.value ?? '');
+    if (index != null && index >= 0 && index < listEmailRule.length) {
+      return index;
+    }
+    return listEmailRule.indexOf(rule);
+  }
+
+  void _updateRules(List<TMailRule> rules) {
+    final accountId = _accountDashBoardController.accountId.value;
+    if (accountId == null ||
+        _updateEmailRulesInteractor == null ||
+        isUpdatingRules.value ||
+        _blockIfReadOnly()) {
+      return;
+    }
+    isUpdatingRules.value = true;
+    consumeState(_updateEmailRulesInteractor!.execute(accountId, rules));
+  }
+
+  void _handleUpdateEmailRulesSuccess(UpdateEmailRulesSuccess success) {
+    isUpdatingRules.value = false;
+    listEmailRule.value = success.rules;
+    emailRulesStatus.value = success.status;
+    if (currentContext != null) {
+      _showSavedMessage(
+        AppLocalizations.of(currentContext!).emailRulesUpdated,
+        success.status,
+      );
+    }
+  }
+
   Future<void> goToCreateNewRule() async {
+    if (_blockIfReadOnly()) return;
     final accountId = _accountDashBoardController.accountId.value;
     final session = _accountDashBoardController.sessionCurrent;
     if (accountId != null && session != null) {
@@ -118,17 +241,20 @@ class EmailRulesController extends BaseController {
 
   void _createNewRuleFilterSuccess(CreateNewRuleFilterSuccess success) {
     if (success.newListRules.isNotEmpty == true) {
-      if (currentOverlayContext != null && currentContext != null) {
-        appToast.showToastSuccessMessage(
-          currentOverlayContext!,
-          AppLocalizations.of(currentContext!).newFilterWasCreated);
+      if (currentContext != null) {
+        _showSavedMessage(
+          AppLocalizations.of(currentContext!).newFilterWasCreated,
+          success.status,
+        );
       }
       listEmailRule.value = success.newListRules;
+      emailRulesStatus.value = success.status ?? emailRulesStatus.value;
       listEmailRule.refresh();
     }
   }
 
   void editEmailRule(BuildContext context, TMailRule rule) async {
+    if (_blockIfReadOnly()) return;
     final accountId = _accountDashBoardController.accountId.value;
     final session = _accountDashBoardController.sessionCurrent;
     if (accountId != null && session != null) {
@@ -159,17 +285,20 @@ class EmailRulesController extends BaseController {
 
   void _editEmailRuleFilterSuccess(EditEmailRuleFilterSuccess success) {
     if (success.listRulesUpdated.isNotEmpty == true) {
-      if (currentOverlayContext != null && currentContext != null) {
-        appToast.showToastSuccessMessage(
-          currentOverlayContext!,
-          AppLocalizations.of(currentContext!).yourFilterHasBeenUpdated);
+      if (currentContext != null) {
+        _showSavedMessage(
+          AppLocalizations.of(currentContext!).yourFilterHasBeenUpdated,
+          success.status,
+        );
       }
       listEmailRule.value = success.listRulesUpdated;
+      emailRulesStatus.value = success.status ?? emailRulesStatus.value;
       listEmailRule.refresh();
     }
   }
 
   void _deleteEmailRule(BuildContext context, TMailRule emailRule) {
+    if (_blockIfReadOnly()) return;
     MessageDialogActionManager().showConfirmDialogAction(
       context,
       title: AppLocalizations.of(context).deleteEmailRule,
@@ -183,27 +312,11 @@ class EmailRulesController extends BaseController {
   }
 
   void _handleDeleteEmailRuleAction(TMailRule emailRule) {
-    if (emailRule.conditionGroup != null) {
-      emailRule = TMailRule(
-        id: emailRule.id,
-        name: emailRule.name,
-        action: emailRule.action,
-        conditionGroup: emailRule.conditionGroup,
-      );
-    }
+    emailRule = emailRule.withoutLegacyCondition();
 
-    listEmailRule.value = listEmailRule.map((rule) {
-      if (rule.conditionGroup != null) {
-        return TMailRule(
-          id: rule.id,
-          name: rule.name,
-          action: rule.action,
-          conditionGroup: rule.conditionGroup,
-        );
-      } else {
-        return rule;
-      }
-    }).toList();
+    listEmailRule.value = listEmailRule
+        .map((rule) => rule.withoutLegacyCondition())
+        .toList();
 
     if (_deleteEmailRuleInteractor != null) {
       final deleteEmailRuleRequest = DeleteEmailRuleRequest(
@@ -224,10 +337,9 @@ class EmailRulesController extends BaseController {
         AppLocalizations.of(currentContext!).toastMessageDeleteEmailRuleSuccessfully);
     }
 
-    if (success.rules?.isNotEmpty == true) {
-      listEmailRule.clear();
-      listEmailRule.addAll(success.rules!);
-    }
+    // An empty list is a valid result: the last rule was deleted.
+    listEmailRule.value = success.rules ?? <TMailRule>[];
+    emailRulesStatus.value = success.status ?? emailRulesStatus.value;
   }
 
   void _getAllRules() {
@@ -239,8 +351,15 @@ class EmailRulesController extends BaseController {
   }
 
   void openEditRuleMenuAction(BuildContext context, TMailRule rule) {
+    final index = _indexOf(rule);
     final contextMenuActions = [
       EmailRuleActionType.edit,
+      if (isSieveBackend) ...[
+        rule.isEnabled ? EmailRuleActionType.disable : EmailRuleActionType.enable,
+        if (index > 0) EmailRuleActionType.moveUp,
+        if (index >= 0 && index < listEmailRule.length - 1)
+          EmailRuleActionType.moveDown,
+      ],
       EmailRuleActionType.delete,
     ].map((filter) {
       return ContextItemEmailRuleTypeAction(
@@ -271,6 +390,16 @@ class EmailRulesController extends BaseController {
         break;
       case EmailRuleActionType.delete:
         _deleteEmailRule(context, rule);
+        break;
+      case EmailRuleActionType.moveUp:
+        moveRule(rule, -1);
+        break;
+      case EmailRuleActionType.moveDown:
+        moveRule(rule, 1);
+        break;
+      case EmailRuleActionType.enable:
+      case EmailRuleActionType.disable:
+        toggleRule(rule);
         break;
       case EmailRuleActionType.add:
         break;

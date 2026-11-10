@@ -18,6 +18,8 @@ import 'package:tmail_ui_user/features/rules_filter_creator/presentation/widgets
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/widgets/rule_filter_title_with_preview_button.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/widgets/rule_preview_banner.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
+import 'package:tmail_ui_user/features/base/widget/switch_label_button_widget.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/email_rules_notice_banner.dart';
 
 class RuleFilterCreatorView extends GetWidget<RulesFilterCreatorController> {
 
@@ -348,6 +350,7 @@ class RuleFilterCreatorView extends GetWidget<RulesFilterCreatorController> {
 
                         return RuleFilterActionWidget(
                           isMobile: isMobile,
+                          actionList: controller.availableActions.toList(),
                           mailboxSelected: action is MoveMessageActionArguments
                               ? action.mailbox
                               : null,
@@ -395,6 +398,21 @@ class RuleFilterCreatorView extends GetWidget<RulesFilterCreatorController> {
                     );
                   }),
                   Obx(() {
+                    if (controller.unavailableActions.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final appLocalizations = AppLocalizations.of(context);
+                    final names = controller.unavailableActions
+                        .map((action) => action.getTitle(appLocalizations))
+                        .join(', ');
+                    return EmailRulesNoticeBanner(
+                      imagePaths: controller.imagePaths,
+                      message:
+                          '${appLocalizations.actionUnavailableOnServer}: $names',
+                      margin: const EdgeInsetsDirectional.only(top: 8),
+                    );
+                  }),
+                  Obx(() {
                     if (controller.isShowAddAction.value == true) {
                       return Container(
                         constraints: const BoxConstraints(minWidth: 161),
@@ -413,6 +431,39 @@ class RuleFilterCreatorView extends GetWidget<RulesFilterCreatorController> {
                     } else {
                       return const SizedBox.shrink();
                     }
+                  }),
+                  Obx(() {
+                    if (!controller.supportsStopProcessing.value) {
+                      return const SizedBox.shrink();
+                    }
+                    final appLocalizations = AppLocalizations.of(context);
+                    return Padding(
+                      padding: const EdgeInsetsDirectional.only(top: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SwitchLabelButtonWidget(
+                            key: const ValueKey('rule_stop_processing_switch'),
+                            imagePaths: controller.imagePaths,
+                            isActive: controller.stopProcessing.value,
+                            label: appLocalizations.stopProcessingOtherRules,
+                            onSwitchAction: controller.toggleStopProcessing,
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(
+                              start: 60,
+                              top: 4,
+                            ),
+                            child: Text(
+                              appLocalizations.stopProcessingOtherRulesHint,
+                              style: ThemeUtils.textStyleBodyBody3(
+                                color: AppColor.steelGray400,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }),
                 ],
               ),

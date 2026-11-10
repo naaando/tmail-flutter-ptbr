@@ -6,6 +6,8 @@ import 'package:tmail_ui_user/features/manage_account/presentation/base/setting_
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/email_rules_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/add_rule_button_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/count_name_of_rules_widget.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/email_rules_status_banner.dart';
+import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/list_email_rules_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/no_rules_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings_utils.dart';
@@ -57,14 +59,18 @@ class EmailRulesView extends GetWidget<EmailRulesController>
                       padding: const EdgeInsetsDirectional.only(end: 16),
                     ),
                   ),
-                  AddRuleButtonWidget(
-                    imagePaths: controller.imagePaths,
-                    margin: const EdgeInsetsDirectional.only(
-                      start: 169,
-                      top: 24,
-                      end: 57,
-                    ),
-                    onAddRuleAction: controller.goToCreateNewRule,
+                  Obx(
+                    () => controller.isReadOnly
+                        ? const SizedBox.shrink()
+                        : AddRuleButtonWidget(
+                            imagePaths: controller.imagePaths,
+                            margin: const EdgeInsetsDirectional.only(
+                              start: 169,
+                              top: 24,
+                              end: 57,
+                            ),
+                            onAddRuleAction: controller.goToCreateNewRule,
+                          ),
                   ),
                 ],
               ),
@@ -76,18 +82,42 @@ class EmailRulesView extends GetWidget<EmailRulesController>
                 isCenter: true,
                 textAlign: TextAlign.center,
               ),
-              Center(
-                child: AddRuleButtonWidget(
-                  imagePaths: controller.imagePaths,
-                  margin: const EdgeInsetsDirectional.only(top: 24, bottom: 16),
-                  minWidth: 230,
-                  onAddRuleAction: controller.goToCreateNewRule,
-                ),
+              Obx(
+                () => controller.isReadOnly
+                    ? const SizedBox.shrink()
+                    : Center(
+                        child: AddRuleButtonWidget(
+                          imagePaths: controller.imagePaths,
+                          margin: const EdgeInsetsDirectional.only(
+                            top: 24,
+                            bottom: 16,
+                          ),
+                          minWidth: 230,
+                          onAddRuleAction: controller.goToCreateNewRule,
+                        ),
+                      ),
               ),
             ],
             Obx(
+              () => EmailRulesStatusBanner(
+                imagePaths: controller.imagePaths,
+                status: controller.emailRulesStatus.value,
+                isActivating: controller.isUpdatingRules.value,
+                onActivate: controller.activateRules,
+                margin: EdgeInsetsDirectional.only(
+                  start: isDesktop ? 0 : 16,
+                  end: isDesktop ? 0 : 16,
+                  top: 16,
+                ),
+              ),
+            ),
+            Obx(
               () => CountNameOfRulesWidget(
                 countRules: controller.listEmailRule.length,
+                hint: controller.isSieveBackend &&
+                        controller.listEmailRule.length > 1
+                    ? AppLocalizations.of(context).emailRulesOrderHint
+                    : null,
                 margin: EdgeInsetsDirectional.only(
                   start: isDesktop ? 0 : 16,
                   top: 24,
@@ -104,7 +134,9 @@ class EmailRulesView extends GetWidget<EmailRulesController>
             ),
             Obx(() {
               if (controller.listEmailRule.isEmpty) {
-                if (controller.isLoading) {
+                if (controller.isLoading || controller.isReadOnly) {
+                  // A read-only script has rules the webmail cannot show;
+                  // "no rules yet" would be wrong.
                   return const SizedBox.shrink();
                 } else {
                   return NoRulesWidget(
@@ -117,6 +149,13 @@ class EmailRulesView extends GetWidget<EmailRulesController>
                 return Expanded(
                   child: ListEmailRulesWidget(
                     listEmailRule: controller.listEmailRule,
+                    showOrderingControls: controller.isSieveBackend &&
+                        controller.emailRulesStatus.value?.isReadOnly != true,
+                    onToggleEmailRuleAction: controller.toggleRule,
+                    onMoveUpEmailRuleAction: (rule) =>
+                        controller.moveRule(rule, -1),
+                    onMoveDownEmailRuleAction: (rule) =>
+                        controller.moveRule(rule, 1),
                     imagePaths: controller.imagePaths,
                     responsiveUtils: controller.responsiveUtils,
                     onDeleteEmailRuleAction: (rule) =>

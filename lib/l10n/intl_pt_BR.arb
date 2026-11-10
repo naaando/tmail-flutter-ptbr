@@ -3738,5 +3738,169 @@
   "aiLabelCategorizationSettingExplanation": "Aplicar meus marcadores aos e-mails recebidos usando a descrição deles",
   "clearTrashSubfoldersSuccess": "Subpastas da lixeira excluídas",
   "clearTrashSubfoldersPartialSuccess": "Não foi possível excluir algumas subpastas da lixeira",
-  "clearTrashSubfoldersFailed": "Falha ao excluir subpastas da lixeira"
+  "clearTrashSubfoldersFailed": "Falha ao excluir subpastas da lixeira",
+  "emailRulesStatusInactive": "Suas regras estão salvas, mas não estão em execução.",
+  "@emailRulesStatusInactive": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesActivate": "Ativar regras",
+  "@emailRulesActivate": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesBlockedByVacation": "As regras estão pausadas enquanto a resposta automática de férias estiver ligada, porque o servidor executa um filtro por vez. Desligue as férias e depois ative as regras aqui.",
+  "@emailRulesBlockedByVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesBlockedByOtherScript": "As regras estão salvas, mas não estão em execução porque o filtro \"{scriptName}\" está ativo no servidor. O webmail não desativa filtros criados em outro lugar.",
+  "@emailRulesBlockedByOtherScript": {
+    "type": "text",
+    "placeholders_order": [
+      "scriptName"
+    ],
+    "placeholders": {
+      "scriptName": {}
+    }
+  },
+  "emailRulesReadOnlyModified": "Estas regras foram alteradas fora do webmail e só podem ser editadas onde foram alteradas. Nada foi sobrescrito.",
+  "@emailRulesReadOnlyModified": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesReadOnlyNameConflict": "O servidor já tem um filtro chamado \"{scriptName}\" que não foi criado pelo webmail. Renomeie ou remova esse filtro para gerenciar as regras aqui.",
+  "@emailRulesReadOnlyNameConflict": {
+    "type": "text",
+    "placeholders_order": [
+      "scriptName"
+    ],
+    "placeholders": {
+      "scriptName": {}
+    }
+  },
+  "emailRulesConflictError": "As regras foram alteradas em outra sessão. A lista foi recarregada; confira e tente novamente.",
+  "@emailRulesConflictError": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesScriptRejected": "O servidor recusou as regras: {detail}",
+  "@emailRulesScriptRejected": {
+    "type": "text",
+    "placeholders_order": [
+      "detail"
+    ],
+    "placeholders": {
+      "detail": {}
+    }
+  },
+  "emailRulesTooLarge": "As regras passam do tamanho aceito pelo servidor. Remova ou simplifique algumas regras.",
+  "@emailRulesTooLarge": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesVerificationFailed": "O servidor não confirmou a alteração. Recarregue para conferir as regras atuais.",
+  "@emailRulesVerificationFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesExtensionUnsupported": "Seu servidor de e-mail não suporta esta regra ({extensions}).",
+  "@emailRulesExtensionUnsupported": {
+    "type": "text",
+    "placeholders_order": [
+      "extensions"
+    ],
+    "placeholders": {
+      "extensions": {}
+    }
+  },
+  "emailRulesSavedButInactive": "Regras salvas, mas ainda não estão em execução.",
+  "@emailRulesSavedButInactive": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesUpdated": "Regras atualizadas",
+  "@emailRulesUpdated": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesOrderHint": "As regras são aplicadas de cima para baixo.",
+  "@emailRulesOrderHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "moveRuleUp": "Mover para cima",
+  "@moveRuleUp": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "moveRuleDown": "Mover para baixo",
+  "@moveRuleDown": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "enableRule": "Ativar regra",
+  "@enableRule": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "disableRule": "Desativar regra",
+  "@disableRule": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "ruleDisabled": "Desativada",
+  "@ruleDisabled": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "stopProcessingOtherRules": "Não aplicar as regras seguintes",
+  "@stopProcessingOtherRules": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "stopProcessingOtherRulesHint": "Quando esta regra se aplicar, as regras abaixo dela serão ignoradas.",
+  "@stopProcessingOtherRulesHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "actionUnavailableOnServer": "Não suportado pelo seu servidor de e-mail",
+  "@actionUnavailableOnServer": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesNewBlockedByVacation": "A resposta automática de férias está ligada. Novas regras serão salvas, mas só entram em execução depois que as férias forem desligadas, porque o servidor executa um filtro por vez.",
+  "@emailRulesNewBlockedByVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesNewBlockedByOtherScript": "O filtro \"{scriptName}\" está ativo no servidor. Novas regras serão salvas, mas não entrarão em execução enquanto ele estiver ativo. O webmail não desativa filtros criados em outro lugar.",
+  "@emailRulesNewBlockedByOtherScript": {
+    "type": "text",
+    "placeholders_order": [
+      "scriptName"
+    ],
+    "placeholders": {
+      "scriptName": {}
+    }
+  }
 }

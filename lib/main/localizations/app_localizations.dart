@@ -2259,6 +2259,179 @@ class AppLocalizations {
         name: 'deleteEmailRule');
   }
 
+  String get emailRulesNewBlockedByVacation {
+    return Intl.message(
+      'The vacation reply is on. New rules will be saved but only run after it is turned off, because the server runs one filter at a time.',
+      name: 'emailRulesNewBlockedByVacation',
+    );
+  }
+
+  String emailRulesNewBlockedByOtherScript(String scriptName) {
+    return Intl.message(
+      'The filter "$scriptName" is active on the server. New rules will be saved but will not run while it is active. The webmail does not turn off filters created elsewhere.',
+      name: 'emailRulesNewBlockedByOtherScript',
+      args: [scriptName],
+    );
+  }
+
+  String get emailRulesStatusInactive {
+    return Intl.message(
+      'Your rules are saved but not running.',
+      name: 'emailRulesStatusInactive',
+    );
+  }
+
+  String get emailRulesActivate {
+    return Intl.message(
+      'Activate rules',
+      name: 'emailRulesActivate',
+    );
+  }
+
+  String get emailRulesBlockedByVacation {
+    return Intl.message(
+      'Rules are paused while the vacation reply is on, because the server runs one filter at a time. Turn off the vacation reply and then activate the rules here.',
+      name: 'emailRulesBlockedByVacation',
+    );
+  }
+
+  String emailRulesBlockedByOtherScript(String scriptName) {
+    return Intl.message(
+      'Rules are saved but not running because the filter "$scriptName" is active on the server. The webmail does not turn off filters created elsewhere.',
+      name: 'emailRulesBlockedByOtherScript',
+      args: [scriptName],
+    );
+  }
+
+  String get emailRulesReadOnlyModified {
+    return Intl.message(
+      'These rules were changed outside the webmail, so they can only be edited where they were changed. Nothing was overwritten.',
+      name: 'emailRulesReadOnlyModified',
+    );
+  }
+
+  String emailRulesReadOnlyNameConflict(String scriptName) {
+    return Intl.message(
+      'The server already has a filter named "$scriptName" that the webmail did not create. Rename or remove it to manage rules here.',
+      name: 'emailRulesReadOnlyNameConflict',
+      args: [scriptName],
+    );
+  }
+
+  String get emailRulesConflictError {
+    return Intl.message(
+      'The rules changed in another session. The list was reloaded; review it and try again.',
+      name: 'emailRulesConflictError',
+    );
+  }
+
+  String emailRulesScriptRejected(String detail) {
+    return Intl.message(
+      'The server rejected the rules: $detail',
+      name: 'emailRulesScriptRejected',
+      args: [detail],
+    );
+  }
+
+  String get emailRulesTooLarge {
+    return Intl.message(
+      'The rules exceed the size the server accepts. Remove or simplify some rules.',
+      name: 'emailRulesTooLarge',
+    );
+  }
+
+  String get emailRulesVerificationFailed {
+    return Intl.message(
+      'The server did not confirm the change. Reload to check the current rules.',
+      name: 'emailRulesVerificationFailed',
+    );
+  }
+
+  String emailRulesExtensionUnsupported(String extensions) {
+    return Intl.message(
+      'Your mail server does not support this rule ($extensions).',
+      name: 'emailRulesExtensionUnsupported',
+      args: [extensions],
+    );
+  }
+
+  String get emailRulesSavedButInactive {
+    return Intl.message(
+      'Rules saved, but they are not running yet.',
+      name: 'emailRulesSavedButInactive',
+    );
+  }
+
+  String get emailRulesUpdated {
+    return Intl.message(
+      'Rules updated',
+      name: 'emailRulesUpdated',
+    );
+  }
+
+  String get emailRulesOrderHint {
+    return Intl.message(
+      'Rules run from top to bottom.',
+      name: 'emailRulesOrderHint',
+    );
+  }
+
+  String get moveRuleUp {
+    return Intl.message(
+      'Move up',
+      name: 'moveRuleUp',
+    );
+  }
+
+  String get moveRuleDown {
+    return Intl.message(
+      'Move down',
+      name: 'moveRuleDown',
+    );
+  }
+
+  String get enableRule {
+    return Intl.message(
+      'Enable rule',
+      name: 'enableRule',
+    );
+  }
+
+  String get disableRule {
+    return Intl.message(
+      'Disable rule',
+      name: 'disableRule',
+    );
+  }
+
+  String get ruleDisabled {
+    return Intl.message(
+      'Disabled',
+      name: 'ruleDisabled',
+    );
+  }
+
+  String get stopProcessingOtherRules {
+    return Intl.message(
+      'Do not apply the following rules',
+      name: 'stopProcessingOtherRules',
+    );
+  }
+
+  String get stopProcessingOtherRulesHint {
+    return Intl.message(
+      'When this rule applies, the rules below it are skipped.',
+      name: 'stopProcessingOtherRulesHint',
+    );
+  }
+
+  String get actionUnavailableOnServer {
+    return Intl.message(
+      'Not supported by your mail server',
+      name: 'actionUnavailableOnServer',
+    );
+  }
+
   String get toastMessageDeleteEmailRuleSuccessfully {
     return Intl.message(
         'The rule has been removed.',

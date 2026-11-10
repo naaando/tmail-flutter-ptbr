@@ -4,6 +4,7 @@ import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/delete_email_rule_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/repository/rule_filter_repository.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/delete_email_rule_state.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/extensions/rule_filter_repository_status_extension.dart';
 
 class DeleteEmailRuleInteractor {
   final RuleFilterRepository _ruleFilterRepository;
@@ -13,7 +14,8 @@ class DeleteEmailRuleInteractor {
   Stream<Either<Failure, Success>> execute(AccountId accountId, DeleteEmailRuleRequest deleteEmailRuleRequest) async* {
     try {
     final result = await _ruleFilterRepository.deleteTMailRule(accountId, deleteEmailRuleRequest);
-      yield Right(DeleteEmailRuleSuccess(result));
+      final status = await _ruleFilterRepository.getRulesStatusOrNull(accountId);
+      yield Right(DeleteEmailRuleSuccess(result, status: status));
     } catch (exception) {
       yield Left(DeleteEmailRuleFailure(exception));
     }

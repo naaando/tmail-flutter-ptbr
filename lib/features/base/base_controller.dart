@@ -69,6 +69,10 @@ import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/features/base/urgent_exception_handler.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:rule_filter/sieve/capability_sieve.dart';
+import 'package:rule_filter/sieve/sieve_account_capability.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_backend.dart';
+import 'package:tmail_ui_user/main/error/request_error.dart';
 
 abstract class BaseController extends GetxController
     with PopupContextMenuActionMixin, LogoutMixin, EmitStateMixin
@@ -395,8 +399,16 @@ abstract class BaseController extends GetxController
 
   void injectRuleFilterBindings(Session? session, AccountId? accountId) {
     try {
-      requireCapability(session!, accountId!, [capabilityRuleFilter]);
-      EmailRulesInteractorBindings().dependencies();
+      final backend = EmailRulesBackend.resolve(session, accountId);
+      if (!backend.isSupported) {
+        throw SessionMissingCapability({capabilityRuleFilter, capabilitySieve});
+      }
+      EmailRulesInteractorBindings(
+        backend: backend,
+        sieveCapability: backend.isSieve
+            ? SieveAccountCapability.fromSession(session!, accountId!)
+            : null,
+      ).dependencies();
     } catch(e) {
       logWarning('$runtimeType::injectRuleFilterBindings(): exception: $e');
     }

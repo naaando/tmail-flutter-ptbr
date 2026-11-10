@@ -38,6 +38,9 @@ import 'package:tmail_ui_user/features/rules_filter_creator/presentation/extensi
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/extensions/select_rule_action_field_extension.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/creator_action_type.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/email_rule_filter_action.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_backend.dart';
+import 'package:rule_filter/sieve/sieve_account_capability.dart';
+import 'package:rule_filter/sieve/sieve_rules_codec.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/rule_filter_action_arguments.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/rules_filter_creator_arguments.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/rules_filter_input_field_arguments.dart';
@@ -72,6 +75,18 @@ class RulesFilterCreatorController extends BaseMailboxController {
   int maxCountAction = EmailRuleFilterAction.values.where((action) => action.isSupported).length - 1;
   final isShowAddAction = Rxn<bool>();
 
+  /// Actions the editor offers. With the Sieve backend, actions whose
+  /// extension the server lacks are removed and listed in
+  /// [unavailableActions] so the editor can explain why.
+  final availableActions = RxList<EmailRuleFilterAction>(
+    EmailRuleFilterAction.values.where((action) => action.isSupported).toList(),
+  );
+  final unavailableActions = RxList<EmailRuleFilterAction>();
+
+  /// Sieve only: stop evaluating the rules below when this one applies.
+  final stopProcessing = false.obs;
+  final supportsStopProcessing = false.obs;
+
   String? _newRuleName;
 
   RulesFilterCreatorArguments? arguments;
@@ -104,6 +119,7 @@ class RulesFilterCreatorController extends BaseMailboxController {
       _emailAddress = arguments!.emailAddress;
       _mailboxDestination = arguments!.mailboxDestination;
       actionType.value = arguments!.actionType;
+      _setUpBackendOptions();
       injectRuleFilterBindings(_session, _accountId);
       _setUpDefaultValueRuleFilter();
       _getAllRules();
@@ -156,6 +172,34 @@ class RulesFilterCreatorController extends BaseMailboxController {
       consumeState(_getAllRulesInteractor!.execute(_accountId!));
     }
   }
+
+  void _setUpBackendOptions() {
+    final backend = EmailRulesBackend.resolve(_session, _accountId);
+    if (!backend.isSieve) return;
+    supportsStopProcessing.value = true;
+    final capability = SieveAccountCapability.fromSession(_session!, _accountId!);
+    if (capability == null) return;
+    final unsupported = EmailRuleFilterAction.values
+        .where((action) => action.isSupported)
+        .where((action) => !_sieveFeatureOf(action).isSupportedBy(capability))
+        .toList();
+    unavailableActions.value = unsupported;
+    availableActions.removeWhere(unsupported.contains);
+    maxCountAction = availableActions.length - 1;
+  }
+
+  static SieveRuleFeature _sieveFeatureOf(EmailRuleFilterAction action) {
+    return switch (action) {
+      EmailRuleFilterAction.moveMessage ||
+      EmailRuleFilterAction.markAsSpam => SieveRuleFeature.moveToMailbox,
+      EmailRuleFilterAction.maskAsSeen ||
+      EmailRuleFilterAction.starIt => SieveRuleFeature.setFlags,
+      EmailRuleFilterAction.rejectIt ||
+      EmailRuleFilterAction.forwardTo => SieveRuleFeature.discard,
+    };
+  }
+
+  void toggleStopProcessing() => stopProcessing.toggle();
 
   void _setUpDefaultValueRuleFilter() {
     conditionCombinerType.value = ConditionCombiner.AND;
@@ -242,6 +286,7 @@ class RulesFilterCreatorController extends BaseMailboxController {
           isShowAddAction.value = true;
         }
 
+        stopProcessing.value = _currentTMailRule!.stopProcessing;
         _newRuleName = _currentTMailRule!.name;
         _setValueInputField(inputRuleNameController, _newRuleName ?? '');
         break;
@@ -601,7 +646,8 @@ class RulesFilterCreatorController extends BaseMailboxController {
         conditionGroup: RuleConditionGroup(
           conditionCombiner: conditionCombinerType.value!,
           conditions: listRuleCondition,
-        )
+        ),
+        stopProcessing: supportsStopProcessing.value && stopProcessing.value,
       );
       ruleFilterRequest = CreateNewEmailRuleFilterRequest(_listEmailRule ?? [], newTMailRule);
     } else {
@@ -619,7 +665,10 @@ class RulesFilterCreatorController extends BaseMailboxController {
         conditionGroup: RuleConditionGroup(
           conditionCombiner: conditionCombinerType.value!,
           conditions: listRuleCondition,
-        ));
+        ),
+        isEnabled: _currentTMailRule?.isEnabled ?? true,
+        stopProcessing: supportsStopProcessing.value && stopProcessing.value,
+      );
       ruleFilterRequest = EditEmailRuleFilterRequest(_listEmailRule?.withIds ?? [], newTMailRule);
     }
     popBack(result: ruleFilterRequest);
