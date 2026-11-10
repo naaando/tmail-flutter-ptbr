@@ -106,6 +106,7 @@ When you're in Profile page, you can see your identity list
 
 - Email rules, also known as filters are powerful tools that allow you to  manage your inbox by automatically sorting, moving to a folder, forwarding, or taking other actions on incoming emails.
 - In Manage account page, When select "Email rules" on the left menu, you can see the list of current rules
+- On servers that use JMAP for Sieve (for example Stalwart), rules can also be reordered, enabled or disabled, and can stop the following rules. See [Email rules on JMAP for Sieve servers](../configuration/sieve-email-rules.md).
   
 ![Group 12 (1)](https://github.com/user-attachments/assets/a0acc2e2-0ee0-49a9-b68e-20b19cdc469b)
 
