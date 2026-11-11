@@ -28,6 +28,9 @@ class UiKeys {
   // Email rules / rules filter creator
   static const String createRuleButton = 'createRuleButton';
   static const String emailRulesSettingMenuItem = 'setting_email_rules';
+  static const String toggleEmailRuleButton = 'toggle_email_rule_button';
+  static const String moveUpEmailRuleButton = 'move_up_email_rule_button';
+  static const String moveDownEmailRuleButton = 'move_down_email_rule_button';
   static const String editEmailRuleButton = 'editEmailRuleButton';
   static const String moreEmailRuleButton = 'moreEmailRuleButton';
   static const String addActionButton = 'addActionButton';

@@ -38,6 +38,7 @@ import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree.d
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree_builder.dart';
 import 'package:tmail_ui_user/features/mailbox_creator/domain/usecases/verify_name_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_manager.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/state/get_all_rules_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_rules_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/creator_action_type.dart';
@@ -323,6 +324,14 @@ void main() {
       rulesFilterCreatorController.teamMailboxesTree.value = MailboxTree(MailboxNode.root());
       debugDefaultTargetPlatformOverride = null;
       tester.view.reset();
+    });
+
+    test('an account without rules counts as loaded, so the first rule can be saved', () {
+      expect(rulesFilterCreatorController.hasLoadedRules, isFalse);
+
+      rulesFilterCreatorController.handleSuccessViewState(GetAllRulesSuccess(const []));
+
+      expect(rulesFilterCreatorController.hasLoadedRules, isTrue);
     });
   });
 }

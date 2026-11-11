@@ -8,10 +8,14 @@ class CountNameOfRulesWidget extends StatelessWidget {
   final int countRules;
   final EdgeInsetsGeometry? margin;
 
+  /// Secondary text after the count, e.g. that rules run in order.
+  final String? hint;
+
   const CountNameOfRulesWidget({
     super.key,
     required this.countRules,
     this.margin,
+    this.hint,
   });
 
   @override
@@ -45,6 +49,17 @@ class CountNameOfRulesWidget extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
+          if (hint != null)
+            Flexible(
+              child: Text(
+                ' · $hint',
+                style: ThemeUtils.textStyleBodyBody3(
+                  color: AppColor.steelGray400,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+            ),
         ],
       ),
     );

@@ -1,28 +1,85 @@
 import 'package:get/get.dart';
+import 'package:rule_filter/sieve/sieve_account_capability.dart';
 import 'package:tmail_ui_user/features/base/interactors_bindings.dart';
 import 'package:tmail_ui_user/features/manage_account/data/datasource/rule_filter_datasource.dart';
 import 'package:tmail_ui_user/features/manage_account/data/datasource_impl/rule_filter_datasource_impl.dart';
+import 'package:tmail_ui_user/features/manage_account/data/datasource_impl/sieve_rule_filter_datasource_impl.dart';
 import 'package:tmail_ui_user/features/manage_account/data/network/rule_filter_api.dart';
+import 'package:tmail_ui_user/features/manage_account/data/network/sieve_rule_filter_api.dart';
 import 'package:tmail_ui_user/features/manage_account/data/repository/rule_filter_repository_impl.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_backend.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/repository/rule_filter_repository.dart';
-import 'package:tmail_ui_user/features/manage_account/domain/usecases/delete_email_rule_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/create_new_email_rule_filter_interactor.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/usecases/delete_email_rule_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/edit_email_rule_filter_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_rules_interactor.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/usecases/sync_email_rules_with_vacation_interactor.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/usecases/update_email_rules_interactor.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/remote_exception_thrower.dart';
 
 class EmailRulesInteractorBindings extends InteractorsBindings {
+  final EmailRulesBackend backend;
+  final SieveAccountCapability? sieveCapability;
+
+  EmailRulesInteractorBindings({
+    this.backend = EmailRulesBackend.linagora,
+    this.sieveCapability,
+  });
+
+  /// Backend and capability the registered instances were built for. GetX
+  /// keeps `lazyPut` instances for the app lifetime, so without this a
+  /// second account (or a server change) would reuse the first one's backend.
+  static Object? _registeredFor;
+
+  @override
+  void dependencies() {
+    final key = (backend, sieveCapability);
+    if (_registeredFor != null && _registeredFor != key) {
+      _deleteAll();
+    }
+    _registeredFor = key;
+    super.dependencies();
+  }
+
+  static void _deleteAll() {
+    void delete<T>() {
+      if (Get.isRegistered<T>()) Get.delete<T>(force: true);
+    }
+
+    delete<GetAllRulesInteractor>();
+    delete<DeleteEmailRuleInteractor>();
+    delete<CreateNewEmailRuleFilterInteractor>();
+    delete<EditEmailRuleFilterInteractor>();
+    delete<UpdateEmailRulesInteractor>();
+    delete<SyncEmailRulesWithVacationInteractor>();
+    delete<RuleFilterRepository>();
+    delete<RuleFilterRepositoryImpl>();
+    delete<RuleFilterDataSource>();
+    delete<RuleFilterDataSourceImpl>();
+    delete<SieveRuleFilterDataSourceImpl>();
+  }
 
   @override
   void bindingsDataSource() {
-    Get.lazyPut<RuleFilterDataSource>(() => Get.find<RuleFilterDataSourceImpl>());
+    if (backend.isSieve) {
+      Get.lazyPut<RuleFilterDataSource>(() => Get.find<SieveRuleFilterDataSourceImpl>());
+    } else {
+      Get.lazyPut<RuleFilterDataSource>(() => Get.find<RuleFilterDataSourceImpl>());
+    }
   }
 
   @override
   void bindingsDataSourceImpl() {
-    Get.lazyPut(() => RuleFilterDataSourceImpl(
-      Get.find<RuleFilterAPI>(),
-      Get.find<RemoteExceptionThrower>()));
+    if (backend.isSieve) {
+      Get.lazyPut(() => SieveRuleFilterDataSourceImpl(
+        Get.find<SieveRuleFilterAPI>(),
+        sieveCapability ?? const SieveAccountCapability(),
+        Get.find<RemoteExceptionThrower>()));
+    } else {
+      Get.lazyPut(() => RuleFilterDataSourceImpl(
+        Get.find<RuleFilterAPI>(),
+        Get.find<RemoteExceptionThrower>()));
+    }
   }
 
   @override
@@ -31,6 +88,8 @@ class EmailRulesInteractorBindings extends InteractorsBindings {
     Get.lazyPut(() => DeleteEmailRuleInteractor(Get.find<RuleFilterRepository>()));
     Get.lazyPut(() => CreateNewEmailRuleFilterInteractor(Get.find<RuleFilterRepository>()));
     Get.lazyPut(() => EditEmailRuleFilterInteractor(Get.find<RuleFilterRepository>()));
+    Get.lazyPut(() => UpdateEmailRulesInteractor(Get.find<RuleFilterRepository>()));
+    Get.lazyPut(() => SyncEmailRulesWithVacationInteractor(Get.find<RuleFilterRepository>()));
   }
 
   @override

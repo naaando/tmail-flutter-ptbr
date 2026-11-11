@@ -5,6 +5,7 @@ import 'package:tmail_ui_user/features/manage_account/data/datasource/rule_filte
 import 'package:tmail_ui_user/features/manage_account/domain/model/create_new_email_rule_filter_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/delete_email_rule_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/edit_email_rule_filter_request.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_status.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/repository/rule_filter_repository.dart';
 
 class RuleFilterRepositoryImpl extends RuleFilterRepository {
@@ -31,5 +32,19 @@ class RuleFilterRepositoryImpl extends RuleFilterRepository {
   @override
   Future<List<TMailRule>> editEmailRuleFilter(AccountId accountId, EditEmailRuleFilterRequest ruleFilterRequest) {
     return dataSource.editEmailRuleFilter(accountId, ruleFilterRequest);
+  }
+
+  @override
+  Future<List<TMailRule>> replaceAllTMailRules(
+    AccountId accountId,
+    List<TMailRule> rules, {
+    List<TMailRule>? currentRules,
+  }) {
+    return dataSource.replaceAllTMailRules(accountId, rules, currentRules: currentRules);
+  }
+
+  @override
+  Future<EmailRulesStatus?> getRulesStatus(AccountId accountId) {
+    return dataSource.getRulesStatus(accountId);
   }
 }

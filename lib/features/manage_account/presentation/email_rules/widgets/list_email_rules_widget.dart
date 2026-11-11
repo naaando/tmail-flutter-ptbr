@@ -12,6 +12,11 @@ class ListEmailRulesWidget extends StatelessWidget {
   final OnEditEmailRuleAction? onEditEmailRuleAction;
   final OnDeleteEmailRuleAction? onDeleteEmailRuleAction;
   final OnMoreEmailRuleAction? onMoreEmailRuleAction;
+  final bool showOrderingControls;
+  final Set<int> rulesWithMissingMailbox;
+  final OnToggleEmailRuleAction? onToggleEmailRuleAction;
+  final OnMoveEmailRuleAction? onMoveUpEmailRuleAction;
+  final OnMoveEmailRuleAction? onMoveDownEmailRuleAction;
 
   const ListEmailRulesWidget({
     Key? key,
@@ -21,6 +26,11 @@ class ListEmailRulesWidget extends StatelessWidget {
     this.onEditEmailRuleAction,
     this.onDeleteEmailRuleAction,
     this.onMoreEmailRuleAction,
+    this.showOrderingControls = false,
+    this.rulesWithMissingMailbox = const {},
+    this.onToggleEmailRuleAction,
+    this.onMoveUpEmailRuleAction,
+    this.onMoveDownEmailRuleAction,
   }) : super(key: key);
 
   @override
@@ -51,6 +61,13 @@ class ListEmailRulesWidget extends StatelessWidget {
             onEditEmailRuleAction: onEditEmailRuleAction,
             onDeleteEmailRuleAction: onDeleteEmailRuleAction,
             onMoreEmailRuleAction: onMoreEmailRuleAction,
+            showOrderingControls: showOrderingControls,
+            canMoveUp: index > 0,
+            canMoveDown: index < listEmailRule.length - 1,
+            hasMissingMailbox: rulesWithMissingMailbox.contains(index),
+            onToggleEmailRuleAction: onToggleEmailRuleAction,
+            onMoveUpEmailRuleAction: onMoveUpEmailRuleAction,
+            onMoveDownEmailRuleAction: onMoveDownEmailRuleAction,
           );
         },
       ),

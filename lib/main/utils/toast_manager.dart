@@ -59,6 +59,7 @@ import 'package:tmail_ui_user/main/exceptions/remote/unknown_remote_exception.da
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 import 'package:workplace/presentation/model/drive_pick_state.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/email_rules_error_message.dart';
 
 class ToastManager {
   final AppToast appToast;
@@ -201,7 +202,10 @@ class ToastManager {
         failure is DeleteRecipientInForwardingSuccessWithSomeCaseFailure) {
       message = message ?? appLocalizations.deleteRecipientsFailed;
     } else if (failure is CreateNewRuleFilterFailure) {
-      message = message ?? appLocalizations.createFilterRuleFailed;
+      // Sieve failures (conflict, read-only, limits) say what happened.
+      message = EmailRulesErrorMessage.of(appLocalizations, exception) ??
+          message ??
+          appLocalizations.createFilterRuleFailed;
     } else if (failure is CalendarEventReplyFailure) {
       message = message ??
           appLocalizations.eventReplyWasSentUnsuccessfully;
@@ -288,6 +292,14 @@ class ToastManager {
         success.savePath,
       );
     } else if (success is CreateNewRuleFilterSuccess) {
+      if (success.status != null && !success.status!.isActive) {
+        // Saved, but another script keeps the rules from running.
+        appToast.showToastWarningMessage(
+          overlayContext,
+          appLocalizations.emailRulesSavedButInactive,
+        );
+        return;
+      }
       message = appLocalizations.newFilterWasCreated;
     } else if (success is EditIdentitySuccess) {
       if (success.isSetAsDefault) {

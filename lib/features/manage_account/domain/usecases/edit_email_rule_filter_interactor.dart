@@ -5,6 +5,7 @@ import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/edit_email_rule_filter_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/repository/rule_filter_repository.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/edit_email_rule_filter_state.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/extensions/rule_filter_repository_status_extension.dart';
 
 class EditEmailRuleFilterInteractor {
   final RuleFilterRepository _ruleFilterRepository;
@@ -18,7 +19,8 @@ class EditEmailRuleFilterInteractor {
     try {
       final newListRules = await _ruleFilterRepository
           .editEmailRuleFilter(accountId, ruleFilterRequest);
-      yield Right(EditEmailRuleFilterSuccess(newListRules));
+      final status = await _ruleFilterRepository.getRulesStatusOrNull(accountId);
+      yield Right(EditEmailRuleFilterSuccess(newListRules, status: status));
     } catch (exception) {
       yield Left(EditEmailRuleFilterFailure(exception));
     }

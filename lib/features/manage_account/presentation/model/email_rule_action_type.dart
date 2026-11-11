@@ -7,7 +7,11 @@ import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 enum EmailRuleActionType {
   add,
   edit,
-  delete;
+  delete,
+  moveUp,
+  moveDown,
+  enable,
+  disable;
 
   String getName(AppLocalizations appLocalizations) {
     switch(this) {
@@ -17,6 +21,14 @@ enum EmailRuleActionType {
         return appLocalizations.editRule;
       case EmailRuleActionType.delete:
         return appLocalizations.deleteRule;
+      case EmailRuleActionType.moveUp:
+        return appLocalizations.moveRuleUp;
+      case EmailRuleActionType.moveDown:
+        return appLocalizations.moveRuleDown;
+      case EmailRuleActionType.enable:
+        return appLocalizations.enableRule;
+      case EmailRuleActionType.disable:
+        return appLocalizations.disableRule;
     }
   }
 
@@ -28,6 +40,14 @@ enum EmailRuleActionType {
         return imagePaths.icEdit;
       case EmailRuleActionType.delete:
         return imagePaths.icDeleteComposer;
+      case EmailRuleActionType.moveUp:
+        return imagePaths.icChevronUp;
+      case EmailRuleActionType.moveDown:
+        return imagePaths.icChevronDown;
+      case EmailRuleActionType.enable:
+        return imagePaths.icEye;
+      case EmailRuleActionType.disable:
+        return imagePaths.icEyeOff;
     }
   }
 

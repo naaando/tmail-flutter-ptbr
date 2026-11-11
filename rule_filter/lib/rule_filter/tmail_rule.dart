@@ -21,12 +21,24 @@ class TMailRule extends Rule {
   final RuleConditionGroup? conditionGroup;
   final RuleAction action;
 
+  /// Sieve backend only. The Linagora `Filter` API has no such property, so the
+  /// field never reaches its JSON and defaults keep that backend unchanged.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool isEnabled;
+
+  /// Sieve backend only: stop evaluating the following rules when this rule
+  /// matches. Not serialized for the same reason as [isEnabled].
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool stopProcessing;
+
   TMailRule({
     this.id,
     required this.name,
     this.condition,
     this.conditionGroup,
     required this.action,
+    this.isEnabled = true,
+    this.stopProcessing = false,
   });
 
   factory TMailRule.fromJson(Map<String, dynamic> json) =>
@@ -40,6 +52,8 @@ class TMailRule extends Rule {
         condition,
         action,
         conditionGroup,
+        isEnabled,
+        stopProcessing,
       ];
 
   TMailRule copyWith({
@@ -48,6 +62,8 @@ class TMailRule extends Rule {
     RuleCondition? condition,
     RuleAction? action,
     RuleConditionGroup? conditionGroup,
+    bool? isEnabled,
+    bool? stopProcessing,
   }) {
     return TMailRule(
       id: id ?? this.id,
@@ -55,6 +71,23 @@ class TMailRule extends Rule {
       condition: condition ?? this.condition,
       action: action ?? this.action,
       conditionGroup: conditionGroup ?? this.conditionGroup,
+      isEnabled: isEnabled ?? this.isEnabled,
+      stopProcessing: stopProcessing ?? this.stopProcessing,
+    );
+  }
+
+  /// Copy without the legacy single [condition] when a [conditionGroup]
+  /// exists (`copyWith` cannot clear a field). Rules are sent to the server
+  /// this way so that both representations never disagree.
+  TMailRule withoutLegacyCondition() {
+    if (conditionGroup == null) return this;
+    return TMailRule(
+      id: id,
+      name: name,
+      conditionGroup: conditionGroup,
+      action: action,
+      isEnabled: isEnabled,
+      stopProcessing: stopProcessing,
     );
   }
 }

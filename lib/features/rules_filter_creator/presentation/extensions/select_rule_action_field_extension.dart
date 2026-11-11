@@ -111,7 +111,7 @@ extension SelectRuleActionFieldExtension on RulesFilterCreatorController {
     int index,
   ) {
     final contextMenuActions = EmailRuleFilterAction.values.map((filterAction) {
-      if (filterAction.isSupported) {
+      if (availableActions.contains(filterAction)) {
         return ContextItemRuleFilterAction(
           filterAction,
           selectedFilterAction,

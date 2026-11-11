@@ -13,7 +13,6 @@ import 'package:jmap_dart_client/jmap/mail/vacation/vacation_response.dart';
 import 'package:jmap_dart_client/jmap/quotas/quota.dart';
 import 'package:model/ai/ai_capabilities.dart';
 import 'package:model/model.dart';
-import 'package:rule_filter/rule_filter/capability_rule_filter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:server_settings/server_settings/capability_server_settings.dart';
 import 'package:tmail_ui_user/features/base/action/ui_action.dart';
@@ -58,6 +57,7 @@ import 'package:tmail_ui_user/main/routes/navigation_router.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 import 'package:tmail_ui_user/main/routes/route_utils.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_backend.dart';
 
 class ManageAccountDashBoardController extends ReloadableController
   with OwnEmailAddressMixin, AiScribeMixin {
@@ -342,13 +342,10 @@ class ManageAccountDashBoardController extends ReloadableController
     }
   }
 
-  bool get isRuleFilterCapabilitySupported {
-    if (accountId.value != null && sessionCurrent != null) {
-      return capabilityRuleFilter.isSupported(sessionCurrent!, accountId.value!);
-    } else {
-      return false;
-    }
-  }
+  bool get isRuleFilterCapabilitySupported => emailRulesBackend.isSupported;
+
+  EmailRulesBackend get emailRulesBackend =>
+      EmailRulesBackend.resolve(sessionCurrent, accountId.value);
 
   bool get isForwardCapabilitySupported {
     if (accountId.value != null && sessionCurrent != null) {
@@ -404,7 +401,15 @@ class ManageAccountDashBoardController extends ReloadableController
         AppLocalizations.of(currentContext!).yourVacationResponderIsDisabledSuccessfully,
       );
     }
-    setUpVacation(success.listVacationResponse.firstOrNull);
+    final vacation = success.listVacationResponse.firstOrNull;
+    setUpVacation(vacation);
+    if (vacation != null) {
+      syncEmailRulesWithVacation(
+        sessionCurrent,
+        accountId.value,
+        vacationEnabled: vacation.isEnabled == true,
+      );
+    }
   }
 
   bool inVacationSettings() {

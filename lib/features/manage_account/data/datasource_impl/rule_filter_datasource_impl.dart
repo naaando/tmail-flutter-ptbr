@@ -6,6 +6,7 @@ import 'package:tmail_ui_user/features/manage_account/data/network/rule_filter_a
 import 'package:tmail_ui_user/features/manage_account/domain/model/create_new_email_rule_filter_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/delete_email_rule_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/edit_email_rule_filter_request.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_status.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/exception_thrower.dart';
 
 class RuleFilterDataSourceImpl extends RuleFilterDataSource {
@@ -48,4 +49,18 @@ class RuleFilterDataSourceImpl extends RuleFilterDataSource {
       return await _ruleFilterAPI.updateListTMailRule(accountId, ruleFilterRequest.listTMailRulesUpdated);
     }).catchError(_exceptionThrower.throwException);
   }
+
+  @override
+  Future<List<TMailRule>> replaceAllTMailRules(
+    AccountId accountId,
+    List<TMailRule> rules, {
+    List<TMailRule>? currentRules,
+  }) {
+    return Future.sync(() async {
+      return await _ruleFilterAPI.updateListTMailRule(accountId, rules);
+    }).catchError(_exceptionThrower.throwException);
+  }
+
+  @override
+  Future<EmailRulesStatus?> getRulesStatus(AccountId accountId) async => null;
 }

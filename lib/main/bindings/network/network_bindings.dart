@@ -42,6 +42,7 @@ import 'package:tmail_ui_user/main/exceptions/thrower/remote_exception_thrower.d
 import 'package:tmail_ui_user/main/exceptions/thrower/send_email_exception_thrower.dart';
 import 'package:tmail_ui_user/main/utils/ios_sharing_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:tmail_ui_user/features/manage_account/data/network/sieve_rule_filter_api.dart';
 
 class NetworkBindings extends Bindings {
 
@@ -121,6 +122,7 @@ class NetworkBindings extends Bindings {
       Get.find<Uuid>(),
     ));
     Get.put(RuleFilterAPI(Get.find<HttpClient>()));
+    Get.put(SieveRuleFilterAPI(Get.find<HttpClient>()));
     Get.put(VacationAPI(Get.find<HttpClient>()));
     Get.put(ContactAPI(Get.find<HttpClient>()));
     Get.put(IdentityAPI(Get.find<HttpClient>()));

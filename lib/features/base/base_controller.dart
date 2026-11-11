@@ -70,6 +70,12 @@ import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/features/base/urgent_exception_handler.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:rule_filter/sieve/capability_sieve.dart';
+import 'package:rule_filter/sieve/sieve_account_capability.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_backend.dart';
+import 'package:tmail_ui_user/main/error/request_error.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/state/sync_email_rules_with_vacation_state.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/usecases/sync_email_rules_with_vacation_interactor.dart';
 
 abstract class BaseController extends GetxController
     with PopupContextMenuActionMixin, LogoutMixin, EmitStateMixin
@@ -346,6 +352,20 @@ abstract class BaseController extends GetxController
       await clearDataAndGoToLoginPage();
     } else if (success is GetCompanyServerLoginInfoSuccess) {
       handleGetCompanyServerLoginInfoSuccess(success.serverLoginInfo);
+    } else if (success is EmailRulesPausedByVacation) {
+      if (currentContext != null && currentOverlayContext != null) {
+        appToast.showToastWarningMessage(
+          currentOverlayContext!,
+          AppLocalizations.of(currentContext!).emailRulesPausedByVacation,
+        );
+      }
+    } else if (success is EmailRulesResumedAfterVacation) {
+      if (currentContext != null && currentOverlayContext != null) {
+        appToast.showToastSuccessMessage(
+          currentOverlayContext!,
+          AppLocalizations.of(currentContext!).emailRulesResumedAfterVacation,
+        );
+      }
     }
   }
 
@@ -396,11 +416,33 @@ abstract class BaseController extends GetxController
 
   void injectRuleFilterBindings(Session? session, AccountId? accountId) {
     try {
-      requireCapability(session!, accountId!, [capabilityRuleFilter]);
-      EmailRulesInteractorBindings().dependencies();
+      final backend = EmailRulesBackend.resolve(session, accountId);
+      if (!backend.isSupported) {
+        throw SessionMissingCapability({capabilityRuleFilter, capabilitySieve});
+      }
+      EmailRulesInteractorBindings(
+        backend: backend,
+        sieveCapability: backend.isSieve
+            ? SieveAccountCapability.fromSession(session!, accountId!)
+            : null,
+      ).dependencies();
     } catch(e) {
       logWarning('$runtimeType::injectRuleFilterBindings(): exception: $e');
     }
+  }
+
+  /// On Sieve servers the vacation reply and the email rules are scripts and
+  /// only one runs; call after the vacation reply changed.
+  void syncEmailRulesWithVacation(
+    Session? session,
+    AccountId? accountId, {
+    required bool vacationEnabled,
+  }) {
+    if (!EmailRulesBackend.resolve(session, accountId).isSieve) return;
+    injectRuleFilterBindings(session, accountId);
+    final interactor = getBinding<SyncEmailRulesWithVacationInteractor>();
+    if (interactor == null) return;
+    consumeState(interactor.execute(accountId!, vacationEnabled: vacationEnabled));
   }
 
   Future<void> injectFCMBindings(Session? session, AccountId? accountId) async {
