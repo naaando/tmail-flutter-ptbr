@@ -22,6 +22,7 @@ import 'package:tmail_ui_user/features/thread/data/network/thread_isolate_worker
 import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
 import 'package:tmail_ui_user/main/utils/ios_sharing_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:tmail_ui_user/main/bindings/network/jmap_header_form_interceptor.dart';
 
 class NetworkIsolateBindings extends Bindings {
 
@@ -60,6 +61,7 @@ class NetworkIsolateBindings extends Bindings {
 
     dio.interceptors.add(Get.find<DynamicUrlInterceptors>());
     dio.interceptors.add(authorizationInterceptors);
+    dio.interceptors.add(JmapHeaderFormInterceptor());
     if (BuildUtils.isDebugMode) {
       dio.interceptors.add(LogInterceptor(requestBody: true));
     }
