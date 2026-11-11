@@ -3902,5 +3902,35 @@
     "placeholders": {
       "scriptName": {}
     }
+  },
+  "emailRulesNotLoaded": "As regras atuais ainda estão carregando. Tente novamente em instantes.",
+  "@emailRulesNotLoaded": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesReadFailed": "Não foi possível ler as regras guardadas no servidor. Nada foi alterado; recarregue e tente novamente.",
+  "@emailRulesReadFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesPausedByVacation": "Suas regras de e-mail ficam pausadas enquanto a resposta automática de férias estiver ligada.",
+  "@emailRulesPausedByVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesResumedAfterVacation": "Suas regras de e-mail voltaram a ser aplicadas.",
+  "@emailRulesResumedAfterVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRuleMissingFolder": "Pasta não encontrada, entrega na Caixa de entrada",
+  "@emailRuleMissingFolder": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
   }
 }

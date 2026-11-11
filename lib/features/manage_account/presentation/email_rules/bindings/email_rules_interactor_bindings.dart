@@ -13,6 +13,7 @@ import 'package:tmail_ui_user/features/manage_account/domain/usecases/create_new
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/delete_email_rule_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/edit_email_rule_filter_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_rules_interactor.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/usecases/sync_email_rules_with_vacation_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/update_email_rules_interactor.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/remote_exception_thrower.dart';
 
@@ -55,6 +56,7 @@ class EmailRulesInteractorBindings extends InteractorsBindings {
     Get.lazyPut(() => CreateNewEmailRuleFilterInteractor(Get.find<RuleFilterRepository>()));
     Get.lazyPut(() => EditEmailRuleFilterInteractor(Get.find<RuleFilterRepository>()));
     Get.lazyPut(() => UpdateEmailRulesInteractor(Get.find<RuleFilterRepository>()));
+    Get.lazyPut(() => SyncEmailRulesWithVacationInteractor(Get.find<RuleFilterRepository>()));
   }
 
   @override

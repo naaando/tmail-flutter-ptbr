@@ -15,10 +15,15 @@ class UpdateEmailRulesInteractor {
 
   Stream<Either<Failure, Success>> execute(
     AccountId accountId,
-    List<TMailRule> rules,
-  ) async* {
+    List<TMailRule> rules, {
+    required List<TMailRule> currentRules,
+  }) async* {
     try {
-      final result = await _ruleFilterRepository.replaceAllTMailRules(accountId, rules);
+      final result = await _ruleFilterRepository.replaceAllTMailRules(
+        accountId,
+        rules,
+        currentRules: currentRules,
+      );
       final status = await _ruleFilterRepository.getRulesStatusOrNull(accountId);
       yield Right(UpdateEmailRulesSuccess(result, status: status));
     } catch (exception) {

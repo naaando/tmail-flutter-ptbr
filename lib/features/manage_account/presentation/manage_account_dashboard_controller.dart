@@ -401,7 +401,15 @@ class ManageAccountDashBoardController extends ReloadableController
         AppLocalizations.of(currentContext!).yourVacationResponderIsDisabledSuccessfully,
       );
     }
-    setUpVacation(success.listVacationResponse.firstOrNull);
+    final vacation = success.listVacationResponse.firstOrNull;
+    setUpVacation(vacation);
+    if (vacation != null) {
+      syncEmailRulesWithVacation(
+        sessionCurrent,
+        accountId.value,
+        vacationEnabled: vacation.isEnabled == true,
+      );
+    }
   }
 
   bool inVacationSettings() {

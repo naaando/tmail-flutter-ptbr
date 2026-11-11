@@ -51,7 +51,11 @@ class RuleFilterDataSourceImpl extends RuleFilterDataSource {
   }
 
   @override
-  Future<List<TMailRule>> replaceAllTMailRules(AccountId accountId, List<TMailRule> rules) {
+  Future<List<TMailRule>> replaceAllTMailRules(
+    AccountId accountId,
+    List<TMailRule> rules, {
+    List<TMailRule>? currentRules,
+  }) {
     return Future.sync(() async {
       return await _ruleFilterAPI.updateListTMailRule(accountId, rules);
     }).catchError(_exceptionThrower.throwException);

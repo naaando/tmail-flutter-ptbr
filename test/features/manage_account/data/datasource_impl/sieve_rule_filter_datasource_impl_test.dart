@@ -16,6 +16,7 @@ import 'package:rule_filter/sieve/sieve_script.dart';
 import 'package:tmail_ui_user/features/manage_account/data/datasource_impl/sieve_rule_filter_datasource_impl.dart';
 import 'package:tmail_ui_user/features/manage_account/data/network/sieve_rule_filter_api.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/exceptions/sieve_rules_exceptions.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/model/create_new_email_rule_filter_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/delete_email_rule_request.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/email_rules_status.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/exception_thrower.dart';
@@ -50,6 +51,11 @@ class _FakeSieveServer extends SieveRuleFilterAPI {
 
   /// Simulates a change made by another session or client.
   void bumpState() => _state++;
+
+  Set<String> mailboxes = {'m1', 'm2'};
+
+  @override
+  Future<Set<String>> mailboxIds(AccountId accountId) async => mailboxes;
 
   @override
   Future<SieveRulesSnapshot> read(AccountId accountId) async {
@@ -119,13 +125,23 @@ void main() {
   late _FakeSieveServer server;
   late SieveRuleFilterDataSourceImpl dataSource;
 
+  /// Writes [rules] starting from what the datasource last read, as the
+  /// rules page does.
+  Future<List<TMailRule>> save(
+    SieveRuleFilterDataSourceImpl source,
+    List<TMailRule> rules,
+  ) async {
+    final current = await source.getAllTMailRule(accountId);
+    return source.replaceAllTMailRules(accountId, rules, currentRules: current);
+  }
+
   setUp(() {
     server = _FakeSieveServer();
     dataSource = SieveRuleFilterDataSourceImpl(server, _capability, _RethrowThrower());
   });
 
   test('first write creates and activates the managed script', () async {
-    final rules = await dataSource.replaceAllTMailRules(accountId, [_rule('A'), _rule('B', enabled: false)]);
+    final rules = await save(dataSource, [_rule('A'), _rule('B', enabled: false)]);
 
     expect(rules.map((r) => r.name), ['A', 'B']);
     expect(rules.map((r) => r.isEnabled), [true, false]);
@@ -136,8 +152,8 @@ void main() {
   });
 
   test('persists order and state across a fresh read', () async {
-    await dataSource.replaceAllTMailRules(accountId, [_rule('A'), _rule('B')]);
-    await dataSource.replaceAllTMailRules(accountId, [_rule('B', enabled: false), _rule('A')]);
+    await save(dataSource, [_rule('A'), _rule('B')]);
+    await save(dataSource, [_rule('B', enabled: false), _rule('A')]);
 
     final reloaded = SieveRuleFilterDataSourceImpl(server, _capability, _RethrowThrower());
     final rules = await reloaded.getAllTMailRule(accountId);
@@ -149,7 +165,7 @@ void main() {
     server.addScript('v', 'vacation', 'require "vacation"; vacation "x";', active: true);
 
     await dataSource.getAllTMailRule(accountId);
-    final rules = await dataSource.replaceAllTMailRules(accountId, [_rule('A')]);
+    final rules = await save(dataSource, [_rule('A')]);
 
     expect(rules, hasLength(1));
     expect(server.lastActivate, isFalse);
@@ -163,7 +179,7 @@ void main() {
   test('never deactivates an unknown active script', () async {
     server.addScript('x', 'roundcube', 'keep;', active: true);
 
-    await dataSource.replaceAllTMailRules(accountId, [_rule('A')]);
+    await save(dataSource, [_rule('A')]);
 
     expect(server.scripts['x']!.isActive, isTrue);
     expect(server.contents['x'], 'keep;');
@@ -174,36 +190,96 @@ void main() {
 
   test('offers activation once nothing else is active', () async {
     server.addScript('v', 'vacation', 'vacation "x";', active: true);
-    await dataSource.replaceAllTMailRules(accountId, [_rule('A')]);
+    await save(dataSource, [_rule('A')]);
     server.scripts['v'] = SieveScript(id: Id('v'), name: 'vacation', isActive: false);
     server.bumpState();
 
     await dataSource.getAllTMailRule(accountId);
     expect((await dataSource.getRulesStatus(accountId))?.canActivate, isTrue);
 
-    await dataSource.replaceAllTMailRules(accountId, await dataSource.getAllTMailRule(accountId));
+    await save(dataSource, await dataSource.getAllTMailRule(accountId));
     expect(server.lastActivate, isTrue);
     expect((await dataSource.getRulesStatus(accountId))?.isActive, isTrue);
   });
 
   test('a concurrent change fails with a conflict and is not overwritten', () async {
-    await dataSource.replaceAllTMailRules(accountId, [_rule('A')]);
+    final listed = await save(dataSource, [_rule('A')]);
     server.bumpState();
     final savesBefore = server.saves;
 
     await expectLater(
-      dataSource.replaceAllTMailRules(accountId, [_rule('B')]),
+      dataSource.replaceAllTMailRules(accountId, [_rule('B')], currentRules: listed),
       throwsA(isA<SieveRulesConflictException>()),
     );
     expect(server.saves, savesBefore);
 
     // The next attempt reads the current state first and succeeds.
-    final rules = await dataSource.replaceAllTMailRules(accountId, [_rule('B')]);
+    final rules = await save(dataSource, [_rule('B')]);
     expect(rules.single.name, 'B');
   });
 
+  test('a stale list is refused even after another read refreshed the state', () async {
+    // The rules page lists [A] ...
+    final pageList = await save(dataSource, [_rule('A')]);
+    // ... another tab adds B ...
+    final other = SieveRuleFilterDataSourceImpl(server, _capability, _RethrowThrower());
+    await other.replaceAllTMailRules(
+      accountId,
+      [_rule('B'), _rule('A')],
+      currentRules: await other.getAllTMailRule(accountId),
+    );
+    // ... and the editor opened in this tab reads the new state.
+    await dataSource.getAllTMailRule(accountId);
+
+    // Toggling A from the page's stale list must not erase B.
+    await expectLater(
+      dataSource.replaceAllTMailRules(
+        accountId,
+        [pageList.single.copyWith(isEnabled: false)],
+        currentRules: pageList,
+      ),
+      throwsA(isA<SieveRulesConflictException>()),
+    );
+    final stored = await dataSource.getAllTMailRule(accountId);
+    expect(stored.map((rule) => rule.name), ['B', 'A']);
+  });
+
+  test('a list that never loaded cannot replace existing rules', () async {
+    await save(dataSource, [_rule('A'), _rule('B')]);
+    final fresh = SieveRuleFilterDataSourceImpl(server, _capability, _RethrowThrower());
+
+    await expectLater(
+      fresh.createNewEmailRuleFilter(
+        accountId,
+        CreateNewEmailRuleFilterRequest(const [], _rule('C')),
+      ),
+      throwsA(isA<SieveRulesConflictException>()),
+    );
+    await expectLater(
+      fresh.replaceAllTMailRules(accountId, [_rule('C')]),
+      throwsA(isA<SieveRulesConflictException>()),
+    );
+    expect((await fresh.getAllTMailRule(accountId)).map((rule) => rule.name), ['A', 'B']);
+  });
+
+  test('a managed script whose content cannot be read is never overwritten', () async {
+    server.scripts['managed'] = SieveScript(
+      id: Id('managed'),
+      name: managedSieveScriptName,
+      isActive: true,
+    );
+
+    expect(await dataSource.getAllTMailRule(accountId), isEmpty);
+    expect((await dataSource.getRulesStatus(accountId))?.readOnlyReason,
+        EmailRulesReadOnlyReason.modifiedExternally);
+    await expectLater(
+      dataSource.replaceAllTMailRules(accountId, [_rule('A')], currentRules: const []),
+      throwsA(isA<SieveRulesReadOnlyException>()),
+    );
+  });
+
   test('a script edited elsewhere becomes read-only and is preserved', () async {
-    await dataSource.replaceAllTMailRules(accountId, [_rule('A')]);
+    await save(dataSource, [_rule('A')]);
     final edited = '${server.contents['managed']!}\r\nkeep;\r\n';
     server.contents['managed'] = edited;
     server.bumpState();
@@ -212,7 +288,7 @@ void main() {
     final status = await dataSource.getRulesStatus(accountId);
     expect(status?.readOnlyReason, EmailRulesReadOnlyReason.modifiedExternally);
     await expectLater(
-      dataSource.replaceAllTMailRules(accountId, [_rule('B')]),
+      save(dataSource, [_rule('B')]),
       throwsA(isA<SieveRulesReadOnlyException>()),
     );
     expect(server.contents['managed'], edited);
@@ -225,7 +301,7 @@ void main() {
     expect((await dataSource.getRulesStatus(accountId))?.readOnlyReason,
         EmailRulesReadOnlyReason.nameConflict);
     await expectLater(
-      dataSource.replaceAllTMailRules(accountId, [_rule('A')]),
+      save(dataSource, [_rule('A')]),
       throwsA(isA<SieveRulesReadOnlyException>()),
     );
     expect(server.contents['f'], 'discard;');
@@ -235,7 +311,7 @@ void main() {
     server.tamperStoredContent = (content) => content.replaceFirst('"m1"', '"m2"');
 
     await expectLater(
-      dataSource.replaceAllTMailRules(accountId, [_rule('A')]),
+      save(dataSource, [_rule('A')]),
       throwsA(isA<SieveRulesVerificationException>()),
     );
   });
@@ -251,7 +327,7 @@ void main() {
     );
 
     await expectLater(
-      small.replaceAllTMailRules(accountId, [_rule('A'), _rule('B')]),
+      save(small, [_rule('A'), _rule('B')]),
       throwsA(isA<SieveScriptTooLargeException>()),
     );
     expect(server.saves, 0);
@@ -265,14 +341,14 @@ void main() {
     );
 
     await expectLater(
-      limited.replaceAllTMailRules(accountId, [_rule('A')]),
+      save(limited, [_rule('A')]),
       throwsA(isA<SieveExtensionNotSupportedException>()),
     );
     expect(server.saves, 0);
   });
 
   test('deleting the last rule keeps an empty managed script', () async {
-    final rules = await dataSource.replaceAllTMailRules(accountId, [_rule('A')]);
+    final rules = await save(dataSource, [_rule('A')]);
 
     final remaining = await dataSource.deleteTMailRule(
       accountId,
@@ -282,5 +358,16 @@ void main() {
     expect(remaining, isEmpty);
     expect(rules, hasLength(1), reason: 'the request list must not be mutated');
     expect((await dataSource.getRulesStatus(accountId))?.isActive, isTrue);
+  });
+
+  test('flags rules whose folder was deleted', () async {
+    await save(dataSource, [
+      _rule('Existe', mailboxIds: ['m1']),
+      _rule('Removida', mailboxIds: ['m9']),
+      _rule('Só marca', mailboxIds: const []),
+    ]);
+
+    final status = await dataSource.getRulesStatus(accountId);
+    expect(status?.rulesWithMissingMailbox, {1});
   });
 }

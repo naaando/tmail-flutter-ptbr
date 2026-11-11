@@ -259,6 +259,13 @@ class VacationController extends BaseController {
       _initializeValueForVacation(newVacationPresentation);
     }
     _accountDashBoardController.setUpVacation(currentVacation);
+    if (currentVacation != null) {
+      syncEmailRulesWithVacation(
+        _accountDashBoardController.sessionCurrent,
+        _accountDashBoardController.accountId.value,
+        vacationEnabled: currentVacation!.isEnabled == true,
+      );
+    }
   }
 
   void updateMessageHtmlText(String? text) => _vacationMessageHtmlText = text;

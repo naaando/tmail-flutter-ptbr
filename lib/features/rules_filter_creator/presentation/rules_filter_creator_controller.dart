@@ -593,11 +593,46 @@ class RulesFilterCreatorController extends BaseMailboxController {
       }
     }
 
+    if (!_isBasedOnCurrentRules(context, appLocalizations)) {
+      return;
+    }
+
     if (await _submitRuleWithRejectAction(context)) {
       return;
     }
 
     _buildAndSubmitRuleFilter();
+  }
+
+  /// The request is built from the rules read when the editor opened. Saving
+  /// before that read finished would send an empty list, and editing by index
+  /// must still point at the rule the user opened.
+  bool _isBasedOnCurrentRules(
+    BuildContext context,
+    AppLocalizations appLocalizations,
+  ) {
+    final rules = _listEmailRule;
+    if (rules == null) {
+      appToast.showToastErrorMessage(
+        context,
+        appLocalizations.emailRulesNotLoaded,
+      );
+      return false;
+    }
+    if (actionType.value != CreatorActionType.edit) return true;
+    final index = int.tryParse(_currentTMailRule?.id?.id.value ?? '');
+    final unchanged = index != null &&
+        index >= 0 &&
+        index < rules.length &&
+        rules[index].withoutLegacyCondition() ==
+            _currentTMailRule!.withoutLegacyCondition();
+    if (!unchanged) {
+      appToast.showToastErrorMessage(
+        context,
+        appLocalizations.emailRulesConflictError,
+      );
+    }
+    return unchanged;
   }
 
   void _buildAndSubmitRuleFilter() {

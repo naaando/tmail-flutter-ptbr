@@ -58,6 +58,12 @@ with the stored content (line endings and trailing blanks ignored):
   webmail and the script is left untouched (`modifiedExternally`);
 - a `twake-mail-rules` script without metadata: read-only (`nameConflict`).
 
+The metadata records the layout version (`"v"`). Scripts written by an older
+layout are compared with that layout's output, so they stay editable, and the
+next save rewrites them in the current one. Version 1 set flags inside each
+rule; version 2 sets the flags of every applicable rule first. Any change to
+the generated code must bump the version and keep the previous generator.
+
 Nothing is stored only in the browser. Code: `SieveRulesCodec`
 (`rule_filter/lib/sieve/sieve_rules_codec.dart`).
 
@@ -74,24 +80,28 @@ Nothing is stored only in the browser. Code: `SieveRulesCodec`
 | is exactly / is not exactly (subject) | `header :is` and its `not` |
 | comparator | `i;unicode-casemap` on Stalwart, `i;ascii-casemap` elsewhere (stored in the metadata) |
 | Move to folder, Mark as spam | `fileinto :mailboxid "<id>" "INBOX"` (`fileinto`, `mailbox`, `mailboxid`) |
-| Mark as seen, Star it, keywords | `addflag [...]` (`imap4flags`) |
+| Mark as seen, Star it, keywords | `addflag [...]` in a first pass (`imap4flags`) |
 | Reject it | `discard; stop;` (silently dropped, no bounce) |
 | Do not apply the following rules | `stop;` |
 | Disabled rule | kept in the metadata, no code generated |
 | Forward to | not offered by the editor (unchanged) |
 
-Values are quoted per RFC 5228: `\` and `"` are escaped, CR/LF removed,
-Unicode kept as UTF-8.
+Values are quoted per RFC 5228: `\` and `"` are escaped and Unicode is kept
+as UTF-8. A value with a line break is refused with an explanation, since a
+header never contains one.
 
 Semantics worth knowing:
 
 - Rules run top to bottom. Without `stop`, every matching rule applies.
-- `addflag` accumulates: flags from a rule also reach later folders and the
-  default delivery (implicit keep). JMAP keywords belong to the message, so a
-  message filed in two folders has one set of flags.
+- Flags are the union of every rule that applies, as with the Linagora backend.
+  The script sets them in a first pass (a rule that stops processing nests the
+  following rules in `else`) and files messages in a second pass, so a folder
+  chosen by an early rule still gets the flags of a later one. JMAP keywords
+  belong to the message, so a message filed in two folders has one set.
 - A message matching no rule, or only flag rules, is delivered as usual.
 - Folders are referenced by id, so renaming a folder keeps the rule working.
-  If the folder is deleted, Stalwart falls back to `INBOX`; mail is never lost.
+  If the folder is deleted, Stalwart falls back to `INBOX`; mail is never lost,
+  and the rules list marks the rule "Folder not found, delivering to Inbox".
 - Extensions are checked against `sieveExtensions` before saving. An action the
   server lacks is removed from the editor with an explanation, and a rule that
   still uses it fails to save with the missing extension named.
@@ -106,8 +116,11 @@ Otherwise the rules are saved inactive and the page explains why:
 - another client's filter active: its name is shown; the webmail does not
   deactivate it.
 
-Turning the automatic reply on from the webmail still deactivates the rules,
-because the server does it. Reconciling both into one script is not in scope.
+Turning the automatic reply on still deactivates the rules, because the server
+does it; the webmail then warns that the rules are paused. When the automatic
+reply is turned off from the webmail (settings page or mailbox banner), the
+rules are activated again if no other script is active. An automatic reply
+changed by another client is only reflected the next time the rules page opens.
 
 ## Writes and failures
 
@@ -118,12 +131,21 @@ compare. A 200 response alone is not success:
 | Failure | Result |
 |---|---|
 | `stateMismatch` | "changed in another session", list reloaded, nothing written |
+| list edited is not the one behind the sent state (stale page, another tab, editor opened before the rules loaded) | same as `stateMismatch`; nothing written |
 | script edited elsewhere | read-only notice, add/edit/reorder hidden, script untouched |
 | `invalidScript`, `notCreated`, `notUpdated`, quota | server message shown, nothing activated |
 | stored rules differ from the ones sent | "server did not confirm", list reloaded |
+| script content unreadable | "could not read the rules", script treated as read-only |
 | script too large / extension missing | refused before any request |
 
-Rules are not applied to messages already in the mailbox.
+The same messages appear when a rule is created from an email (quick create).
+
+Known limits:
+
+- If the read-back fails after a successful save, the save is reported as
+  failed; the next attempt sees a conflict and reloads the stored rules.
+- "Recipient" checks `To` and `Cc` only.
+- Rules are not applied to messages already in the mailbox.
 
 ## Rollback
 

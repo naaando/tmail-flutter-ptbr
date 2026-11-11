@@ -30,6 +30,9 @@ class EmailRulesItemWidget extends StatelessWidget {
   final bool showOrderingControls;
   final bool canMoveUp;
   final bool canMoveDown;
+
+  /// The rule files into a folder that no longer exists.
+  final bool hasMissingMailbox;
   final OnToggleEmailRuleAction? onToggleEmailRuleAction;
   final OnMoveEmailRuleAction? onMoveUpEmailRuleAction;
   final OnMoveEmailRuleAction? onMoveDownEmailRuleAction;
@@ -45,6 +48,7 @@ class EmailRulesItemWidget extends StatelessWidget {
     this.showOrderingControls = false,
     this.canMoveUp = false,
     this.canMoveDown = false,
+    this.hasMissingMailbox = false,
     this.onToggleEmailRuleAction,
     this.onMoveUpEmailRuleAction,
     this.onMoveDownEmailRuleAction,
@@ -55,9 +59,11 @@ class EmailRulesItemWidget extends StatelessWidget {
     final isMobile = responsiveUtils.isMobile(context);
     final appLocalizations = AppLocalizations.of(context);
     final nameColor = rule.isEnabled ? Colors.black : AppColor.steelGray400;
-    final preview = rule.isEnabled
-        ? rule.getPreview(appLocalizations)
-        : '${appLocalizations.ruleDisabled} · ${rule.getPreview(appLocalizations)}';
+    final preview = [
+      if (!rule.isEnabled) appLocalizations.ruleDisabled,
+      if (hasMissingMailbox) appLocalizations.emailRuleMissingFolder,
+      rule.getPreview(appLocalizations),
+    ].join(' · ');
 
     return Container(
       decoration: const BoxDecoration(

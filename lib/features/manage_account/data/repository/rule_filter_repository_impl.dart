@@ -35,8 +35,12 @@ class RuleFilterRepositoryImpl extends RuleFilterRepository {
   }
 
   @override
-  Future<List<TMailRule>> replaceAllTMailRules(AccountId accountId, List<TMailRule> rules) {
-    return dataSource.replaceAllTMailRules(accountId, rules);
+  Future<List<TMailRule>> replaceAllTMailRules(
+    AccountId accountId,
+    List<TMailRule> rules, {
+    List<TMailRule>? currentRules,
+  }) {
+    return dataSource.replaceAllTMailRules(accountId, rules, currentRules: currentRules);
   }
 
   @override

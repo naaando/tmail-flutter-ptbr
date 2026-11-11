@@ -151,6 +151,9 @@ class EmailRulesView extends GetWidget<EmailRulesController>
                     listEmailRule: controller.listEmailRule,
                     showOrderingControls: controller.isSieveBackend &&
                         controller.emailRulesStatus.value?.isReadOnly != true,
+                    rulesWithMissingMailbox: controller.emailRulesStatus.value
+                            ?.rulesWithMissingMailbox ??
+                        const {},
                     onToggleEmailRuleAction: controller.toggleRule,
                     onMoveUpEmailRuleAction: (rule) =>
                         controller.moveRule(rule, -1),

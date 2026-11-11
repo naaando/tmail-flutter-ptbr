@@ -18,6 +18,7 @@ abstract final class EmailRulesErrorMessage {
           description?.isNotEmpty == true ? '$description ($type)' : type,
         ),
       SieveScriptTooLargeException() => appLocalizations.emailRulesTooLarge,
+      SieveRulesReadException() => appLocalizations.emailRulesReadFailed,
       SieveRulesVerificationException() =>
         appLocalizations.emailRulesVerificationFailed,
       SieveExtensionNotSupportedException(:final missingExtensions) =>

@@ -1,5 +1,5 @@
 {
-  "@@last_modified": "2026-11-10T20:20:40.285610",
+  "@@last_modified": "2026-11-10T20:41:31.059739",
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",
@@ -2233,6 +2233,36 @@
     "placeholders": {
       "scriptName": {}
     }
+  },
+  "emailRulesNotLoaded": "The current rules are still loading. Try again in a moment.",
+  "@emailRulesNotLoaded": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesReadFailed": "Could not read the rules stored on the server. Nothing was changed; reload and try again.",
+  "@emailRulesReadFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesPausedByVacation": "Your email rules are paused while the vacation reply is on.",
+  "@emailRulesPausedByVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRulesResumedAfterVacation": "Your email rules are running again.",
+  "@emailRulesResumedAfterVacation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "emailRuleMissingFolder": "Folder not found, delivering to Inbox",
+  "@emailRuleMissingFolder": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
   },
   "emailRulesStatusInactive": "Your rules are saved but not running.",
   "@emailRulesStatusInactive": {

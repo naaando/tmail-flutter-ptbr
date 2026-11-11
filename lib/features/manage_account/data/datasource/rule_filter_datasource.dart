@@ -15,7 +15,13 @@ abstract class RuleFilterDataSource {
   Future<List<TMailRule>> editEmailRuleFilter(AccountId accountId, EditEmailRuleFilterRequest ruleFilterRequest);
 
   /// Replaces the whole ordered list (reorder, enable or disable a rule).
-  Future<List<TMailRule>> replaceAllTMailRules(AccountId accountId, List<TMailRule> rules);
+  /// [currentRules] is the list the change was made from; backends with
+  /// optimistic concurrency refuse the write when it is no longer current.
+  Future<List<TMailRule>> replaceAllTMailRules(
+    AccountId accountId,
+    List<TMailRule> rules, {
+    List<TMailRule>? currentRules,
+  });
 
   /// Server-side state of the rules; `null` when the backend has none.
   Future<EmailRulesStatus?> getRulesStatus(AccountId accountId);

@@ -28,6 +28,17 @@ class SieveScriptRejectedException extends SieveRulesException {
   String toString() => 'SieveScriptRejectedException($type, $description)';
 }
 
+/// The server answered but the rules could not be read (missing or
+/// unreadable script content, empty method response).
+class SieveRulesReadException extends SieveRulesException {
+  final String reason;
+
+  const SieveRulesReadException(this.reason);
+
+  @override
+  String toString() => 'SieveRulesReadException($reason)';
+}
+
 class SieveScriptTooLargeException extends SieveRulesException {
   final int size;
   final int maxSize;

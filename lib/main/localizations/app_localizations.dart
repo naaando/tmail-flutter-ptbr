@@ -2274,6 +2274,41 @@ class AppLocalizations {
     );
   }
 
+  String get emailRulesNotLoaded {
+    return Intl.message(
+      'The current rules are still loading. Try again in a moment.',
+      name: 'emailRulesNotLoaded',
+    );
+  }
+
+  String get emailRulesReadFailed {
+    return Intl.message(
+      'Could not read the rules stored on the server. Nothing was changed; reload and try again.',
+      name: 'emailRulesReadFailed',
+    );
+  }
+
+  String get emailRulesPausedByVacation {
+    return Intl.message(
+      'Your email rules are paused while the vacation reply is on.',
+      name: 'emailRulesPausedByVacation',
+    );
+  }
+
+  String get emailRulesResumedAfterVacation {
+    return Intl.message(
+      'Your email rules are running again.',
+      name: 'emailRulesResumedAfterVacation',
+    );
+  }
+
+  String get emailRuleMissingFolder {
+    return Intl.message(
+      'Folder not found, delivering to Inbox',
+      name: 'emailRuleMissingFolder',
+    );
+  }
+
   String get emailRulesStatusInactive {
     return Intl.message(
       'Your rules are saved but not running.',

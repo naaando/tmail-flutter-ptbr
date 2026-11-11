@@ -198,7 +198,11 @@ class EmailRulesController extends BaseController {
       return;
     }
     isUpdatingRules.value = true;
-    consumeState(_updateEmailRulesInteractor!.execute(accountId, rules));
+    consumeState(_updateEmailRulesInteractor!.execute(
+      accountId,
+      rules,
+      currentRules: List<TMailRule>.of(listEmailRule),
+    ));
   }
 
   void _handleUpdateEmailRulesSuccess(UpdateEmailRulesSuccess success) {

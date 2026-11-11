@@ -2251,6 +2251,11 @@ class MailboxDashBoardController extends ReloadableController
       }
       vacationResponse.value = success.listVacationResponse.first;
       log('MailboxDashBoardController::_handleUpdateVacationSuccess(): $vacationResponse');
+      syncEmailRulesWithVacation(
+        sessionCurrent,
+        accountId.value,
+        vacationEnabled: success.listVacationResponse.first.isEnabled == true,
+      );
     }
   }
 

@@ -13,6 +13,7 @@ class ListEmailRulesWidget extends StatelessWidget {
   final OnDeleteEmailRuleAction? onDeleteEmailRuleAction;
   final OnMoreEmailRuleAction? onMoreEmailRuleAction;
   final bool showOrderingControls;
+  final Set<int> rulesWithMissingMailbox;
   final OnToggleEmailRuleAction? onToggleEmailRuleAction;
   final OnMoveEmailRuleAction? onMoveUpEmailRuleAction;
   final OnMoveEmailRuleAction? onMoveDownEmailRuleAction;
@@ -26,6 +27,7 @@ class ListEmailRulesWidget extends StatelessWidget {
     this.onDeleteEmailRuleAction,
     this.onMoreEmailRuleAction,
     this.showOrderingControls = false,
+    this.rulesWithMissingMailbox = const {},
     this.onToggleEmailRuleAction,
     this.onMoveUpEmailRuleAction,
     this.onMoveDownEmailRuleAction,
@@ -62,6 +64,7 @@ class ListEmailRulesWidget extends StatelessWidget {
             showOrderingControls: showOrderingControls,
             canMoveUp: index > 0,
             canMoveDown: index < listEmailRule.length - 1,
+            hasMissingMailbox: rulesWithMissingMailbox.contains(index),
             onToggleEmailRuleAction: onToggleEmailRuleAction,
             onMoveUpEmailRuleAction: onMoveUpEmailRuleAction,
             onMoveDownEmailRuleAction: onMoveDownEmailRuleAction,

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:core/utils/app_logger.dart';
+
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:rule_filter/rule_filter/tmail_rule.dart';
 import 'package:rule_filter/sieve/sieve_account_capability.dart';
@@ -27,6 +29,7 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
   final SieveRulesCodec _codec;
 
   final Map<AccountId, SieveRulesSnapshot> _snapshots = {};
+  final Map<AccountId, Set<String>> _mailboxIds = {};
 
   SieveRuleFilterDataSourceImpl(
     this._api,
@@ -48,7 +51,11 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
     AccountId accountId,
     CreateNewEmailRuleFilterRequest ruleFilterRequest,
   ) {
-    return _write(accountId, ruleFilterRequest.newListTMailRules);
+    return _write(
+      accountId,
+      ruleFilterRequest.newListTMailRules,
+      expectedCurrent: ruleFilterRequest.currentListTMailRules,
+    );
   }
 
   @override
@@ -56,7 +63,11 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
     AccountId accountId,
     EditEmailRuleFilterRequest ruleFilterRequest,
   ) {
-    return _write(accountId, ruleFilterRequest.listTMailRulesUpdated);
+    return _write(
+      accountId,
+      ruleFilterRequest.listTMailRulesUpdated,
+      expectedCurrent: ruleFilterRequest.currentListTMailRules,
+    );
   }
 
   @override
@@ -66,28 +77,37 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
   ) {
     final rules = List<TMailRule>.of(deleteEmailRuleRequest.currentEmailRules)
       ..remove(deleteEmailRuleRequest.emailRuleDelete);
-    return _write(accountId, rules);
+    return _write(
+      accountId,
+      rules,
+      expectedCurrent: deleteEmailRuleRequest.currentEmailRules,
+    );
   }
 
   @override
   Future<List<TMailRule>> replaceAllTMailRules(
     AccountId accountId,
-    List<TMailRule> rules,
-  ) {
-    return _write(accountId, rules);
+    List<TMailRule> rules, {
+    List<TMailRule>? currentRules,
+  }) {
+    return _write(accountId, rules, expectedCurrent: currentRules);
   }
 
   @override
   Future<EmailRulesStatus?> getRulesStatus(AccountId accountId) {
     return Future.sync(() async {
       final snapshot = _snapshots[accountId] ?? await _refresh(accountId);
-      return statusOf(snapshot);
+      return statusOf(snapshot, mailboxIds: await _loadMailboxIds(accountId));
     }).catchError(_exceptionThrower.throwException);
   }
 
-  EmailRulesStatus statusOf(SieveRulesSnapshot snapshot) {
+  EmailRulesStatus statusOf(
+    SieveRulesSnapshot snapshot, {
+    Set<String>? mailboxIds,
+  }) {
     final managed = snapshot.managedScript;
     final otherActive = snapshot.otherActiveScript;
+    final rules = _rulesOf(snapshot);
     return EmailRulesStatus(
       hasManagedScript: managed != null,
       isActive: managed?.isActive == true,
@@ -97,7 +117,27 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
       unsupportedFeatures: SieveRuleFeature.values
           .where((feature) => !feature.isSupportedBy(_capability))
           .toSet(),
+      rulesWithMissingMailbox: mailboxIds == null
+          ? const {}
+          : {
+              for (var index = 0; index < rules.length; index++)
+                if (rules[index].action.reject != true &&
+                    rules[index].action.appendIn.mailboxIds.any(
+                      (id) => !mailboxIds.contains(id.id.value),
+                    ))
+                  index,
+            },
     );
+  }
+
+  /// Best effort: without the list no rule is flagged, nothing else changes.
+  Future<Set<String>?> _loadMailboxIds(AccountId accountId) async {
+    try {
+      return _mailboxIds[accountId] = await _api.mailboxIds(accountId);
+    } catch (error) {
+      logWarning('SieveRuleFilterDataSourceImpl::_loadMailboxIds(): $error');
+      return _mailboxIds[accountId];
+    }
   }
 
   Future<SieveRulesSnapshot> _refresh(AccountId accountId) async {
@@ -116,7 +156,9 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
 
   EmailRulesReadOnlyReason? _readOnlyReasonOf(SieveRulesSnapshot snapshot) {
     final content = snapshot.managedContent;
-    if (snapshot.managedScript == null || content == null) return null;
+    if (snapshot.managedScript == null) return null;
+    // A managed script whose content could not be read is never overwritten.
+    if (content == null) return EmailRulesReadOnlyReason.modifiedExternally;
     if (!content.contains(managedSieveMetadataPrefix)) {
       return EmailRulesReadOnlyReason.nameConflict;
     }
@@ -125,12 +167,26 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
         : EmailRulesReadOnlyReason.modifiedExternally;
   }
 
-  Future<List<TMailRule>> _write(AccountId accountId, List<TMailRule> rules) {
+  /// [expectedCurrent] is the list the caller edited. It must equal the rules
+  /// of the snapshot whose state is sent as `ifInState`; otherwise the caller
+  /// started from an older (or not yet loaded) list and writing would erase
+  /// changes it never saw. `null` is only accepted by internal callers that
+  /// derive the list from the snapshot itself.
+  Future<List<TMailRule>> _write(
+    AccountId accountId,
+    List<TMailRule> rules, {
+    required List<TMailRule>? expectedCurrent,
+  }) {
     return Future.sync(() async {
       final base = _snapshots[accountId] ?? await _refresh(accountId);
       final readOnlyReason = _readOnlyReasonOf(base);
       if (readOnlyReason != null) {
         throw SieveRulesReadOnlyException(readOnlyReason);
+      }
+      if (expectedCurrent == null ||
+          !_sameRules(_rulesOf(base), expectedCurrent)) {
+        _snapshots.remove(accountId);
+        throw const SieveRulesConflictException();
       }
 
       // The comparator is recorded in the metadata, so picking the best one

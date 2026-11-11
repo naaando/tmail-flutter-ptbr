@@ -282,7 +282,10 @@ class ThreadDetailController extends BaseController {
 
   @override
   void handleFailureViewState(failure) {
-    if (failure is GetThreadByIdFailure) {
+    if (failure is CreateNewRuleFilterFailure) {
+      // Quick "create rule" from an email: report why it was not saved.
+      toastManager.showMessageFailure(failure);
+    } else if (failure is GetThreadByIdFailure) {
       handleGetThreadByIdFailure(failure);
     } else if (failure is GetEmailsByIdsFailure) {
       if (failure.updateCurrentThreadDetail) return;

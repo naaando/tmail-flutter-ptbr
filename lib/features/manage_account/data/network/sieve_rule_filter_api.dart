@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:core/utils/app_logger.dart';
 import 'package:jmap_dart_client/http/http_client.dart';
+import 'package:jmap_dart_client/http/converter/account_id_converter.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/error/method/error_method_response.dart';
 import 'package:jmap_dart_client/jmap/core/error/method/exception/error_method_response_exception.dart';
@@ -13,6 +14,8 @@ import 'package:rule_filter/sieve/sieve_methods.dart';
 import 'package:rule_filter/sieve/sieve_rules_codec.dart';
 import 'package:rule_filter/sieve/sieve_script.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/exceptions/sieve_rules_exceptions.dart';
+import 'package:jmap_dart_client/jmap/core/capability/capability_identifier.dart';
+import 'package:jmap_dart_client/jmap/core/request/request_invocation.dart';
 
 /// Name Stalwart gives to the script behind `VacationResponse`.
 const String stalwartVacationScriptName = 'vacation';
@@ -72,7 +75,7 @@ class SieveRuleFilterAPI {
           blob.text == null ||
           blob.isTruncated ||
           blob.isEncodingProblem) {
-        throw const SieveScriptRejectedException('blobNotReadable');
+        throw const SieveRulesReadException('blobNotReadable');
       }
       content = blob.text;
     }
@@ -83,6 +86,16 @@ class SieveRuleFilterAPI {
       managedScript: managedScript,
       managedContent: content,
     );
+  }
+
+  /// Ids of the account's mailboxes, used to flag rules whose target folder
+  /// was deleted (the script then files into INBOX).
+  Future<Set<String>> mailboxIds(AccountId accountId) async {
+    final response = await _execute(
+      _GetMailboxIdsMethod(accountId),
+      _GetMailboxIdsResponse.deserialize,
+    );
+    return response.ids;
   }
 
   /// Uploads, validates and stores the managed script. Activation only
@@ -171,9 +184,8 @@ class SieveRuleFilterAPI {
         methodName: method.methodName,
       );
       if (result == null) {
-        throw SieveScriptRejectedException(
-          'emptyResponse',
-          description: method.methodName.value,
+        throw SieveRulesReadException(
+          'emptyResponse:${method.methodName.value}',
         );
       }
       return result;
@@ -198,4 +210,43 @@ class SieveRuleFilterAPI {
       description: error?.description,
     );
   }
+}
+
+class _GetMailboxIdsMethod extends MethodRequiringAccountId {
+  _GetMailboxIdsMethod(super.accountId);
+
+  @override
+  MethodName get methodName => MethodName('Mailbox/get');
+
+  @override
+  Set<CapabilityIdentifier> get requiredCapabilities => {
+        CapabilityIdentifier.jmapCore,
+        CapabilityIdentifier.jmapMail,
+      };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'accountId': const AccountIdConverter().toJson(accountId),
+        'properties': ['id'],
+      };
+
+  @override
+  List<Object?> get props => [accountId];
+}
+
+class _GetMailboxIdsResponse extends MethodResponse {
+  final Set<String> ids;
+
+  _GetMailboxIdsResponse(this.ids);
+
+  static _GetMailboxIdsResponse deserialize(Map<String, dynamic> json) {
+    return _GetMailboxIdsResponse(
+      (json['list'] as List<dynamic>? ?? const [])
+          .map((value) => (value as Map<String, dynamic>)['id'] as String)
+          .toSet(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [ids];
 }

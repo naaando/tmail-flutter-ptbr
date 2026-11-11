@@ -250,7 +250,10 @@ class SingleEmailController extends BaseController with AppLoaderMixin {
 
   @override
   void handleFailureViewState(Failure failure) {
-    if (failure is MarkAsEmailReadFailure) {
+    if (failure is CreateNewRuleFilterFailure) {
+      // Quick "create rule" from an email: report why it was not saved.
+      toastManager.showMessageFailure(failure);
+    } else if (failure is MarkAsEmailReadFailure) {
       _handleMarkAsEmailReadFailure(failure);
     } else if (failure is ParseCalendarEventFailure) {
       _handleParseCalendarEventFailure(failure);
@@ -1204,11 +1207,7 @@ class SingleEmailController extends BaseController with AppLoaderMixin {
 
   void _createNewRuleFilterSuccess(CreateNewRuleFilterSuccess success) {
     if (success.newListRules.isNotEmpty == true) {
-      if (currentOverlayContext != null && currentContext != null) {
-        appToast.showToastSuccessMessage(
-          currentOverlayContext!,
-          AppLocalizations.of(currentContext!).newFilterWasCreated);
-      }
+      toastManager.showMessageSuccess(success);
     }
   }
 

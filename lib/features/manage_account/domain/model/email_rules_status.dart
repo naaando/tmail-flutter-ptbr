@@ -35,6 +35,10 @@ class EmailRulesStatus with EquatableMixin {
   /// The editor may offer the "stop processing further rules" option.
   final bool supportsStopProcessing;
 
+  /// Positions of rules that file into a mailbox that no longer exists. The
+  /// server then delivers to INBOX, so mail is kept but the user should know.
+  final Set<int> rulesWithMissingMailbox;
+
   const EmailRulesStatus({
     required this.hasManagedScript,
     required this.isActive,
@@ -43,6 +47,7 @@ class EmailRulesStatus with EquatableMixin {
     this.readOnlyReason,
     this.unsupportedFeatures = const {},
     this.supportsStopProcessing = true,
+    this.rulesWithMissingMailbox = const {},
   });
 
   bool get isReadOnly => readOnlyReason != null;
@@ -62,5 +67,6 @@ class EmailRulesStatus with EquatableMixin {
         readOnlyReason,
         unsupportedFeatures,
         supportsStopProcessing,
+        rulesWithMissingMailbox,
       ];
 }
