@@ -39,15 +39,27 @@ enum SieveRuleFeature {
 }
 
 class SieveRulesDocument with EquatableMixin {
-  static const int currentVersion = 1;
+  /// Version of the generated script layout, stored in the metadata.
+  /// 1: flags set inside each rule (single pass).
+  /// 2: flags of every applicable rule set in a first pass.
+  /// Scripts written by an older version stay editable: they are compared
+  /// with that version's output and rewritten in the current one on the next
+  /// save. Every layout change must bump this and keep the old generator.
+  static const int currentVersion = 2;
+  static const Set<int> supportedVersions = {1, 2};
 
   final String comparator;
   final List<TMailRule> rules;
+  final int version;
 
-  const SieveRulesDocument({required this.comparator, required this.rules});
+  const SieveRulesDocument({
+    required this.comparator,
+    required this.rules,
+    this.version = currentVersion,
+  });
 
   @override
-  List<Object?> get props => [comparator, rules];
+  List<Object?> get props => [comparator, rules, version];
 }
 
 enum ManagedScriptIntegrity {
@@ -172,6 +184,27 @@ class SieveRulesCodec {
       lines.add('require [${required.map(_quote).join(', ')}];');
     }
 
+    if (document.version == 1) {
+      return _generateV1(document, lines);
+    }
+
+    for (final rule in document.rules.where((rule) => rule.isEnabled)) {
+      _validate(rule);
+    }
+
+    // Pass 1: flags. `fileinto` and the default delivery take the flags set
+    // when they run, so every applicable rule's flags are set first; the
+    // message then gets the union, as with the Linagora backend. A rule that
+    // stops processing (or discards) nests the following rules in `else`.
+    final flagLines = _flagPass(document, 0);
+    if (flagLines.isNotEmpty) {
+      lines
+        ..add('')
+        ..add('# Marcadores das regras que se aplicam')
+        ..addAll(flagLines);
+    }
+
+    // Pass 2: actions, in order, honouring `stop`.
     for (var index = 0; index < document.rules.length; index++) {
       final rule = document.rules[index];
       lines.add('');
@@ -180,14 +213,79 @@ class SieveRulesCodec {
         continue;
       }
       lines.add('# Regra ${index + 1}');
+      final commands = _commandsOf(rule);
+      if (commands.isEmpty) {
+        lines.add('# somente marcadores');
+        continue;
+      }
       lines.add('if ${_testOf(rule, document.comparator)} {');
-      for (final command in _commandsOf(rule)) {
+      for (final command in commands) {
         lines.add('    $command');
       }
       lines.add('}');
     }
 
     return '${lines.join('\r\n')}\r\n';
+  }
+
+  /// Layout of version 1, kept only to recognise scripts it wrote.
+  String _generateV1(SieveRulesDocument document, List<String> lines) {
+    for (var index = 0; index < document.rules.length; index++) {
+      final rule = document.rules[index];
+      lines.add('');
+      if (!rule.isEnabled) {
+        lines.add('# Regra ${index + 1}: desativada');
+        continue;
+      }
+      lines.add('# Regra ${index + 1}');
+      lines.add('if ${_testOf(rule, document.comparator, version: 1)} {');
+      final action = rule.action;
+      final commands = action.reject == true
+          ? ['discard;', 'stop;']
+          : [
+              if (_flagsOf(rule).isNotEmpty)
+                'addflag ${_stringList(_flagsOf(rule))};',
+              for (final mailboxId in action.appendIn.mailboxIds)
+                'fileinto :mailboxid ${_quote(mailboxId.id.value)} '
+                    '${_quote(fallbackMailboxName)};',
+              if (rule.stopProcessing) 'stop;',
+            ];
+      for (final command in commands) {
+        lines.add('    $command');
+      }
+      lines.add('}');
+    }
+    return '${lines.join('\r\n')}\r\n';
+  }
+
+  List<String> _flagPass(SieveRulesDocument document, int from) {
+    final lines = <String>[];
+    for (var index = from; index < document.rules.length; index++) {
+      final rule = document.rules[index];
+      if (!rule.isEnabled) continue;
+      final flags = _flagsOf(rule);
+      final terminates = rule.stopProcessing || rule.action.reject == true;
+      if (!terminates && flags.isEmpty) continue;
+
+      final test = _testOf(rule, document.comparator);
+      if (!terminates) {
+        lines.add('if $test { addflag ${_stringList(flags)}; }');
+        continue;
+      }
+      final rest = _flagPass(document, index + 1);
+      if (flags.isEmpty && rest.isEmpty) return lines;
+      lines.add('if $test {');
+      if (flags.isNotEmpty) lines.add('    addflag ${_stringList(flags)};');
+      if (rest.isEmpty) {
+        lines.add('}');
+      } else {
+        lines.add('} else {');
+        lines.addAll(rest.map((line) => '    $line'));
+        lines.add('}');
+      }
+      return lines;
+    }
+    return lines;
   }
 
   ParsedManagedScript parse(String content) {
@@ -217,13 +315,22 @@ class SieveRulesCodec {
 
     // Without the account capability the `require` line may differ only by
     // optional entries, so compare against both variants.
-    final candidates = {
-      _normalize(generate(document)),
-      _normalize(generate(
+    final Set<String> candidates;
+    try {
+      candidates = {
+        _normalize(generate(document)),
+        _normalize(generate(
+          document,
+          capability: _capabilityAnnouncing(content),
+        )),
+      };
+    } catch (_) {
+      // Metadata the webmail would never write (e.g. edited by hand).
+      return ParsedManagedScript(
+        ManagedScriptIntegrity.modifiedExternally,
         document,
-        capability: _capabilityAnnouncing(content),
-      )),
-    };
+      );
+    }
     final integrity = candidates.contains(_normalize(content))
         ? ManagedScriptIntegrity.intact
         : ManagedScriptIntegrity.modifiedExternally;
@@ -246,7 +353,7 @@ class SieveRulesCodec {
 
   Map<String, dynamic> _metadataOf(SieveRulesDocument document) {
     return {
-      'v': SieveRulesDocument.currentVersion,
+      'v': document.version,
       'cmp': document.comparator,
       'rules': document.rules.map((rule) {
         final json = rule.withoutLegacyCondition().toJson()..remove('id');
@@ -260,8 +367,10 @@ class SieveRulesCodec {
   }
 
   SieveRulesDocument _documentOf(Map<String, dynamic> json) {
-    if (json['v'] != SieveRulesDocument.currentVersion) {
-      throw FormatException('Unsupported metadata version: ${json['v']}');
+    final version = json['v'];
+    if (version is! int ||
+        !SieveRulesDocument.supportedVersions.contains(version)) {
+      throw FormatException('Unsupported metadata version: $version');
     }
     final rules = (json['rules'] as List<dynamic>).asMap().entries.map((entry) {
       final ruleJson = Map<String, dynamic>.from(entry.value as Map)
@@ -275,25 +384,34 @@ class SieveRulesCodec {
     return SieveRulesDocument(
       comparator: json['cmp'] as String,
       rules: rules,
+      version: version,
     );
   }
 
-  String _testOf(TMailRule rule, String comparator) {
+  String _testOf(
+    TMailRule rule,
+    String comparator, {
+    int version = SieveRulesDocument.currentVersion,
+  }) {
     final group = rule.conditionGroup;
     final conditions = group?.conditions ??
         [if (rule.condition != null) rule.condition!];
     if (conditions.isEmpty) {
       throw SieveRuleNotRepresentableException(rule.name, 'no condition');
     }
-    final tests =
-        conditions.map((condition) => _conditionTest(condition, comparator));
+    final tests = conditions
+        .map((condition) => _conditionTest(condition, comparator, version));
     final combiner = group?.conditionCombiner == ConditionCombiner.OR
         ? 'anyof'
         : 'allof';
     return '$combiner(${tests.join(', ')})';
   }
 
-  String _conditionTest(RuleCondition condition, String comparator) {
+  String _conditionTest(
+    RuleCondition condition,
+    String comparator,
+    int version,
+  ) {
     final headers = switch (condition.field) {
       Field.from => ['from'],
       Field.to => ['to'],
@@ -303,7 +421,12 @@ class SieveRulesCodec {
     };
     final isAddressField = condition.field != Field.subject;
     final headerList = _stringList(headers);
-    final value = _quote(condition.value);
+    // Version 1 dropped line breaks instead of refusing them.
+    final value = _quote(
+      version == 1
+          ? condition.value.replaceAll('\r', '').replaceAll('\n', '')
+          : condition.value,
+    );
     final cmp = ':comparator ${_quote(comparator)}';
 
     String contains() => 'header $cmp :contains $headerList $value';
@@ -331,15 +454,8 @@ class SieveRulesCodec {
     ];
   }
 
-  List<String> _commandsOf(TMailRule rule) {
+  void _validate(TMailRule rule) {
     final action = rule.action;
-    if (action.reject == true) {
-      // `discard` drops the message silently, like the Linagora backend.
-      // Sending a bounce (`reject`) would generate backscatter.
-      return ['discard;', 'stop;'];
-    }
-
-    final flags = _flagsOf(rule);
     for (final keyword in action.withKeywords ?? const <String>[]) {
       if (!RegExp(r'^\$?[A-Za-z0-9_.\-]+$').hasMatch(keyword)) {
         throw SieveRuleNotRepresentableException(
@@ -348,17 +464,33 @@ class SieveRulesCodec {
         );
       }
     }
-
-    final mailboxIds = action.appendIn.mailboxIds;
-    if (flags.isEmpty && mailboxIds.isEmpty && !rule.stopProcessing) {
+    final conditions = rule.conditionGroup?.conditions ??
+        [if (rule.condition != null) rule.condition!];
+    for (final condition in conditions) {
+      if (condition.value.contains('\n') || condition.value.contains('\r')) {
+        // Header values never contain line breaks; dropping them would make
+        // the script test something other than what the editor shows.
+        throw SieveRuleNotRepresentableException(rule.name, 'line break in value');
+      }
+    }
+    if (action.reject != true &&
+        _flagsOf(rule).isEmpty &&
+        action.appendIn.mailboxIds.isEmpty &&
+        !rule.stopProcessing) {
       throw SieveRuleNotRepresentableException(rule.name, 'no action');
     }
+  }
 
+  /// Delivery commands of a rule; its flags were set in the first pass.
+  List<String> _commandsOf(TMailRule rule) {
+    final action = rule.action;
+    if (action.reject == true) {
+      // `discard` drops the message silently, like the Linagora backend.
+      // Sending a bounce (`reject`) would generate backscatter.
+      return ['discard;', 'stop;'];
+    }
     return [
-      // Flags accumulate for the rest of the script, so they also reach the
-      // default delivery (implicit keep) and the mailboxes below.
-      if (flags.isNotEmpty) 'addflag ${_stringList(flags)};',
-      for (final mailboxId in mailboxIds)
+      for (final mailboxId in action.appendIn.mailboxIds)
         'fileinto :mailboxid ${_quote(mailboxId.id.value)} '
             '${_quote(fallbackMailboxName)};',
       if (rule.stopProcessing) 'stop;',
@@ -369,12 +501,9 @@ class SieveRulesCodec {
       '[${values.map(_quote).join(', ')}]';
 
   /// RFC 5228, section 2.4.2: inside a quoted string only `"` and `\` need
-  /// escaping. CR and LF are removed because header values never contain
-  /// them and they would change the meaning of the comparison.
+  /// escaping. Condition values with line breaks are refused in [_validate].
   String _quote(String value) {
     final escaped = value
-        .replaceAll('\r', '')
-        .replaceAll('\n', '')
         .replaceAll(r'\', r'\\')
         .replaceAll('"', r'\"');
     return '"$escaped"';

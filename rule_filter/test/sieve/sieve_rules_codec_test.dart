@@ -109,17 +109,21 @@ void main() {
         '''
 require ["fileinto", "imap4flags", "mailbox", "mailboxid"];
 
-# Regra 1
+# Marcadores das regras que se aplicam
 if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatório") {
     addflag ["\\\\Seen"];
+} else {
+    if anyof(anyof(address :all :comparator "i;unicode-casemap" :is ["from"] "chefe@ext.test", header :comparator "i;unicode-casemap" :is ["from"] "chefe@ext.test"), not header :comparator "i;unicode-casemap" :contains ["to", "cc"] "lista@") { addflag ["\\\\Flagged", "\$label1"]; }
+}
+
+# Regra 1
+if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatório") {
     fileinto :mailboxid "m1" "INBOX";
     stop;
 }
 
 # Regra 2
-if anyof(anyof(address :all :comparator "i;unicode-casemap" :is ["from"] "chefe@ext.test", header :comparator "i;unicode-casemap" :is ["from"] "chefe@ext.test"), not header :comparator "i;unicode-casemap" :contains ["to", "cc"] "lista@") {
-    addflag ["\\\\Flagged", "\$label1"];
-}
+# somente marcadores
 
 # Regra 3: desativada
 
@@ -134,7 +138,7 @@ if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatóri
       expect(script, contains('\r\n'));
     });
 
-    test('escapes quotes and backslashes and drops line breaks', () {
+    test('escapes quotes and backslashes', () {
       final script = codec.generate(document([
         _rule(
           'Escape',
@@ -142,7 +146,7 @@ if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatóri
             RuleCondition(
               field: Field.subject,
               comparator: Comparator.contains,
-              value: 'a"b\\c\r\nd',
+              value: 'a"b\\cd',
             ),
           ],
           important: true,
@@ -178,6 +182,53 @@ if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatóri
       );
       expect(codec.chooseComparator(generic), asciiCaseMapComparator);
       expect(codec.chooseComparator(_stalwart), unicodeCaseMapComparator);
+    });
+
+    test('refuses line breaks instead of testing a different value', () {
+      expect(
+        () => codec.generate(document([
+          _rule(
+            'Quebra',
+            conditions: [
+              RuleCondition(
+                field: Field.subject,
+                comparator: Comparator.contains,
+                value: 'a\r\nb',
+              ),
+            ],
+            seen: true,
+          ),
+        ])),
+        throwsA(isA<SieveRuleNotRepresentableException>()),
+      );
+    });
+
+    test('flags of later rules reach messages filed by earlier ones', () {
+      final script = codec.generate(document([
+        _rule('Mover', mailboxIds: ['m1']),
+        _rule('Lida', seen: true),
+      ]));
+      final flags = script.indexOf('addflag');
+      final fileinto = script.indexOf('fileinto :mailboxid');
+      expect(flags, greaterThan(0));
+      expect(flags, lessThan(fileinto),
+          reason: 'flags must be set before any fileinto runs');
+    });
+
+    test('a stopping rule keeps the following rules out of the flag pass', () {
+      final script = codec.generate(document([
+        _rule('Para', mailboxIds: ['m1'], stop: true),
+        _rule('Estrela', important: true),
+      ]));
+      final flagPass = script.substring(
+        script.indexOf('# Marcadores'),
+        script.indexOf('# Regra 1'),
+      );
+      expect(flagPass, contains('} else {'));
+      expect(
+        flagPass.indexOf('Flagged'),
+        greaterThan(flagPass.indexOf('} else {')),
+      );
     });
 
     test('rejects invalid keywords and rules without action', () {
@@ -296,6 +347,13 @@ if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatóri
       expect(renamed.document!.rules.first.name, 'Outro');
     });
 
+    test('metadata the webmail would never write is foreign, not an error', () {
+      final script = codec.generate(document(rules), capability: _stalwart);
+      final broken = script.replaceFirst('"markAsSeen":true', '"markAsSeen":true,"withKeywords":["com espaço"]');
+      final parsed = codec.parse(broken);
+      expect(parsed.integrity, ManagedScriptIntegrity.modifiedExternally);
+    });
+
     test('treats scripts without metadata or with unknown versions as foreign',
         () {
       expect(
@@ -353,5 +411,32 @@ if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "relatóri
         codec.generate(entry.value, capability: _stalwart),
       );
     }
+  });
+
+  test('scripts written by the version 1 layout stay editable', () {
+    // Exact output of the previous release (single pass, flags per rule).
+    const v1 = '# Twake Mail: regras de e-mail gerenciadas pelo webmail.\r\n'
+        '# Altere pelo webmail. Edições manuais deixam as regras somente leitura.\r\n'
+        '# twake-mail-rules: {"v":1,"cmp":"i;unicode-casemap","rules":[{"name":"Relatórios de ação","conditionGroup":{"conditionCombiner":"AND","conditions":[{"field":"subject","comparator":"contains","value":"AÇÃO"}]},"action":{"appendIn":{"mailboxIds":["h"]},"markAsSeen":true,"markAsImportant":false,"reject":false},"enabled":true,"stop":false}]}\r\n'
+        'require ["fileinto", "imap4flags", "mailbox", "mailboxid"];\r\n'
+        '\r\n'
+        '# Regra 1\r\n'
+        'if allof(header :comparator "i;unicode-casemap" :contains ["subject"] "AÇÃO") {\r\n'
+        '    addflag ["\\\\Seen"];\r\n'
+        '    fileinto :mailboxid "h" "INBOX";\r\n'
+        '}\r\n';
+
+    final parsed = codec.parse(v1);
+    expect(parsed.isIntact, isTrue);
+    expect(parsed.document!.version, 1);
+    expect(parsed.document!.rules.single.name, 'Relatórios de ação');
+
+    // The next save writes the current layout.
+    final rewritten = codec.generate(SieveRulesDocument(
+      comparator: parsed.document!.comparator,
+      rules: parsed.document!.rules,
+    ));
+    expect(rewritten, contains('"v":${SieveRulesDocument.currentVersion}'));
+    expect(codec.parse(rewritten).isIntact, isTrue);
   });
 }
