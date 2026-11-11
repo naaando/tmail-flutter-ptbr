@@ -43,6 +43,7 @@ import 'package:tmail_ui_user/main/exceptions/thrower/send_email_exception_throw
 import 'package:tmail_ui_user/main/utils/ios_sharing_manager.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tmail_ui_user/features/manage_account/data/network/sieve_rule_filter_api.dart';
+import 'package:tmail_ui_user/main/bindings/network/jmap_header_form_interceptor.dart';
 
 class NetworkBindings extends Bindings {
 
@@ -102,6 +103,7 @@ class NetworkBindings extends Bindings {
     ));
     dio.interceptors.add(Get.find<DynamicUrlInterceptors>());
     dio.interceptors.add(Get.find<AuthorizationInterceptors>());
+    dio.interceptors.add(JmapHeaderFormInterceptor());
     if (BuildUtils.isDebugMode) {
       dio.interceptors.add(LogInterceptor(requestBody: true));
     }
