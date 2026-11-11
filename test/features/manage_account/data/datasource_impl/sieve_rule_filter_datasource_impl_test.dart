@@ -57,8 +57,19 @@ class _FakeSieveServer extends SieveRuleFilterAPI {
   @override
   Future<Set<String>> mailboxIds(AccountId accountId) async => mailboxes;
 
+  /// Reads that fail after the next save (network trouble on read-back).
+  int failReadsAfterSave = 0;
+  bool _savedSinceFailureArmed = false;
+
+  /// Turns the vacation reply on right after the next save.
+  bool enableVacationAfterSave = false;
+
   @override
   Future<SieveRulesSnapshot> read(AccountId accountId) async {
+    if (_savedSinceFailureArmed && failReadsAfterSave > 0) {
+      failReadsAfterSave--;
+      throw Exception('network');
+    }
     final managed = scripts.values
         .where((script) => script.name == managedSieveScriptName)
         .firstOrNull;
@@ -82,6 +93,7 @@ class _FakeSieveServer extends SieveRuleFilterAPI {
     }
     saves++;
     lastActivate = activate;
+    _savedSinceFailureArmed = true;
     final id = base.managedScript?.id.value ?? 'managed';
     final stored = tamperStoredContent?.call(content) ?? content;
     contents[id] = stored;
@@ -100,6 +112,16 @@ class _FakeSieveServer extends SieveRuleFilterAPI {
       isActive: activate || (scripts[id]?.isActive ?? false),
     );
     _state++;
+    if (enableVacationAfterSave) {
+      scripts.updateAll((key, script) => SieveScript(
+            id: script.id,
+            name: script.name,
+            blobId: script.blobId,
+            isActive: false,
+          ));
+      addScript('v', 'vacation', 'vacation "x";', active: true);
+      _state++;
+    }
   }
 }
 
@@ -369,5 +391,40 @@ void main() {
 
     final status = await dataSource.getRulesStatus(accountId);
     expect(status?.rulesWithMissingMailbox, {1});
+  });
+
+  test('a transient read-back failure does not turn a save into an error', () async {
+    await save(dataSource, [_rule('A')]);
+    final current = await dataSource.getAllTMailRule(accountId);
+    server.failReadsAfterSave = 1;
+
+    final rules = await dataSource.replaceAllTMailRules(
+      accountId,
+      [_rule('B')],
+      currentRules: current,
+    );
+    expect(rules.single.name, 'B');
+  });
+
+  test('a save that cannot be read back twice is reported as unconfirmed', () async {
+    await save(dataSource, [_rule('A')]);
+    final current = await dataSource.getAllTMailRule(accountId);
+    server.failReadsAfterSave = 2;
+
+    await expectLater(
+      dataSource.replaceAllTMailRules(accountId, [_rule('B')], currentRules: current),
+      throwsA(isA<SieveRulesVerificationException>()),
+    );
+  });
+
+  test('vacation turned on during the save is a status, not a failure', () async {
+    await save(dataSource, [_rule('A')]);
+    server.enableVacationAfterSave = true;
+
+    final rules = await save(dataSource, [_rule('B')]);
+    expect(rules.single.name, 'B');
+    final status = await dataSource.getRulesStatus(accountId);
+    expect(status?.isActive, isFalse);
+    expect(status?.blockedByVacation, isTrue);
   });
 }

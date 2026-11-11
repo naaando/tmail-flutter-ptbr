@@ -73,7 +73,7 @@ Nothing is stored only in the browser. Code: `SieveRulesCodec`
 |---|---|
 | All / any of the conditions | `allof(...)` / `anyof(...)` |
 | From, To, Cc | header `from`, `to`, `cc` |
-| Recipient | headers `to` and `cc` |
+| Recipient | headers `to` and `cc` (same as Linagora: `RECIPIENT_EXTRACTOR = and(TO_EXTRACTOR, CC_EXTRACTOR)` in Apache James `HeaderExtractor`) |
 | Subject | header `subject` |
 | contains / does not contain | `header :contains` / `not header :contains` |
 | is exactly / is not exactly (address fields) | `anyof(address :all :is, header :is)` and its `not` |
@@ -119,8 +119,11 @@ Otherwise the rules are saved inactive and the page explains why:
 Turning the automatic reply on still deactivates the rules, because the server
 does it; the webmail then warns that the rules are paused. When the automatic
 reply is turned off from the webmail (settings page or mailbox banner), the
-rules are activated again if no other script is active. An automatic reply
-changed by another client is only reflected the next time the rules page opens.
+rules are activated again if no other script is active. If another client
+turned it off, the webmail does the same when it next loads the mailbox (the
+vacation reply is read at startup). Consequence: deactivating
+`twake-mail-rules` from another client while no other script is active is
+undone on the next webmail load; disable the rules in the webmail instead.
 
 ## Writes and failures
 
@@ -140,12 +143,16 @@ compare. A 200 response alone is not success:
 
 The same messages appear when a rule is created from an email (quick create).
 
-Known limits:
+After a save, the rules are read back (twice on a network error). Success
+means the server holds what was sent; whether they run is shown by the status,
+so a vacation reply turned on in between is not a failure. Only when both reads
+fail is the change reported as unconfirmed.
 
-- If the read-back fails after a successful save, the save is reported as
-  failed; the next attempt sees a conflict and reloads the stored rules.
-- "Recipient" checks `To` and `Cc` only.
-- Rules are not applied to messages already in the mailbox.
+The backend and the account's Sieve capability are resolved per session; if
+another account or server is used without reloading the app, the data layer is
+rebuilt instead of reusing the first one.
+
+Rules are not applied to messages already in the mailbox.
 
 ## Rollback
 

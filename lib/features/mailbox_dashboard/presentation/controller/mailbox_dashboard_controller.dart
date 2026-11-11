@@ -508,6 +508,15 @@ class MailboxDashBoardController extends ReloadableController
     } else if (success is GetAllVacationSuccess) {
       if (success.listVacationResponse.isNotEmpty) {
         vacationResponse.value = success.listVacationResponse.first;
+        // The vacation reply may have been turned off by another client,
+        // which leaves no Sieve script active: resume the rules on load.
+        if (success.listVacationResponse.first.isEnabled != true) {
+          syncEmailRulesWithVacation(
+            sessionCurrent,
+            accountId.value,
+            vacationEnabled: false,
+          );
+        }
       }
     } else if (success is UpdateVacationSuccess) {
       _handleUpdateVacationSuccess(success);

@@ -20,6 +20,7 @@ import 'package:tmail_ui_user/features/rules_filter_creator/presentation/widgets
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/features/base/widget/switch_label_button_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/widgets/email_rules_notice_banner.dart';
+import 'package:tmail_ui_user/features/rules_filter_creator/presentation/model/creator_action_type.dart';
 
 class RuleFilterCreatorView extends GetWidget<RulesFilterCreatorController> {
 
@@ -470,18 +471,23 @@ class RuleFilterCreatorView extends GetWidget<RulesFilterCreatorController> {
             ),
           ),
         ),
-        RuleFilterListActionWidget(
-          positiveLabel: appLocalizations.createRule,
-          negativeLabel: appLocalizations.cancel,
-          padding: EdgeInsets.symmetric(
-            vertical: 25,
-            horizontal: isMobile ? 16 : 32,
+        Obx(
+          () => RuleFilterListActionWidget(
+            // The same editor creates and edits; label the action accordingly.
+            positiveLabel: controller.actionType.value == CreatorActionType.edit
+                ? appLocalizations.saveChanges
+                : appLocalizations.createRule,
+            negativeLabel: appLocalizations.cancel,
+            padding: EdgeInsets.symmetric(
+              vertical: 25,
+              horizontal: isMobile ? 16 : 32,
+            ),
+            onPositiveAction: () {
+              FocusScope.of(context).unfocus();
+              controller.createNewRuleFilter(context);
+            },
+            onNegativeAction: () => controller.closeView(context),
           ),
-          onPositiveAction: () {
-            FocusScope.of(context).unfocus();
-            controller.createNewRuleFilter(context);
-          },
-          onNegativeAction: () => controller.closeView(context),
         ),
       ],
     );

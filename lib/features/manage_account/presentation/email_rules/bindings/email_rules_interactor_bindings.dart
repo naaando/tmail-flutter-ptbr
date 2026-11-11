@@ -26,6 +26,39 @@ class EmailRulesInteractorBindings extends InteractorsBindings {
     this.sieveCapability,
   });
 
+  /// Backend and capability the registered instances were built for. GetX
+  /// keeps `lazyPut` instances for the app lifetime, so without this a
+  /// second account (or a server change) would reuse the first one's backend.
+  static Object? _registeredFor;
+
+  @override
+  void dependencies() {
+    final key = (backend, sieveCapability);
+    if (_registeredFor != null && _registeredFor != key) {
+      _deleteAll();
+    }
+    _registeredFor = key;
+    super.dependencies();
+  }
+
+  static void _deleteAll() {
+    void delete<T>() {
+      if (Get.isRegistered<T>()) Get.delete<T>(force: true);
+    }
+
+    delete<GetAllRulesInteractor>();
+    delete<DeleteEmailRuleInteractor>();
+    delete<CreateNewEmailRuleFilterInteractor>();
+    delete<EditEmailRuleFilterInteractor>();
+    delete<UpdateEmailRulesInteractor>();
+    delete<SyncEmailRulesWithVacationInteractor>();
+    delete<RuleFilterRepository>();
+    delete<RuleFilterRepositoryImpl>();
+    delete<RuleFilterDataSource>();
+    delete<RuleFilterDataSourceImpl>();
+    delete<SieveRuleFilterDataSourceImpl>();
+  }
+
   @override
   void bindingsDataSource() {
     if (backend.isSieve) {

@@ -223,17 +223,37 @@ class SieveRuleFilterDataSourceImpl extends RuleFilterDataSource {
         rethrow;
       }
 
-      final stored = await _refresh(accountId);
+      final stored = await _readBack(accountId);
       final storedRules = _rulesOf(stored);
+      // Success means the server holds the rules that were sent. Whether
+      // they run is reported by the status: the vacation reply may have been
+      // turned on between the write and this read, which is not a failure.
       final verified = _readOnlyReasonOf(stored) == null &&
           stored.managedContent != null &&
-          _sameRules(storedRules, document.rules) &&
-          (!activate || stored.managedScript?.isActive == true);
+          _sameRules(storedRules, document.rules);
       if (!verified) {
         throw const SieveRulesVerificationException();
       }
       return storedRules;
     }).catchError(_exceptionThrower.throwException);
+  }
+
+  /// The write already succeeded; a transient failure reading it back must
+  /// not be reported as a failed save, so the read is tried twice. Only when
+  /// both fail is the change reported as unconfirmed.
+  Future<SieveRulesSnapshot> _readBack(AccountId accountId) async {
+    try {
+      return await _refresh(accountId);
+    } catch (error) {
+      logWarning('SieveRuleFilterDataSourceImpl::_readBack(): $error');
+      try {
+        return await _refresh(accountId);
+      } catch (error) {
+        logWarning('SieveRuleFilterDataSourceImpl::_readBack(): $error');
+        _snapshots.remove(accountId);
+        throw const SieveRulesVerificationException();
+      }
+    }
   }
 
   bool _sameRules(List<TMailRule> stored, List<TMailRule> sent) {
