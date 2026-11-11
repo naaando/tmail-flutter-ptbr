@@ -23,8 +23,18 @@ Checked on 2026-11-10 against `stalwartlabs/stalwart:v0.16`
 which announces `implementation: "Stalwart v1.0.0"`, `maxSizeScript: 102400`,
 `maxNumberScripts: 100` and the extensions used below.
 
-Server behaviour the implementation depends on (all reproduced on that
-version):
+Also checked on 2026-11-11 against `stalwartlabs/stalwart:v1.1.0`
+(digest `sha256:f772aa6ef8cd8018969fa491640f1436b0270eb14e2c219b5f37f1a77020837e`):
+same capabilities and limits, same vacation behaviour, same validation and
+`ifInState` handling; the full webmail flow and delivery with the webmail
+closed behave the same. Differences: `:mailboxid` no longer requires `mailbox`
+in `require` (the generated script still declares it when announced, which
+stays valid), and the server adds the `$hasnoattachment` keyword on delivery.
+Moving from v0.16 to 1.x needs Stalwart's data migration; the managed scripts
+are ordinary Sieve scripts and need no change from the webmail.
+
+Server behaviour the implementation depends on (all reproduced on v0.16 and
+v1.1.0):
 
 - Only one script is active per account. Activating one deactivates the others.
 - `VacationResponse` is a script named `vacation`. Turning the automatic reply

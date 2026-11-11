@@ -148,9 +148,8 @@ class RulesFilterCreatorController extends BaseMailboxController {
         syncAllMailboxWithDisplayName(currentContext!);
       }
     } else if (success is GetAllRulesSuccess) {
-      if (success.rules?.isNotEmpty == true) {
-        _listEmailRule = success.rules!;
-      }
+      // An empty list is a loaded list: the account simply has no rules yet.
+      _listEmailRule = success.rules ?? <TMailRule>[];
     } else {
       super.handleSuccessViewState(success);
     }
@@ -200,6 +199,9 @@ class RulesFilterCreatorController extends BaseMailboxController {
   }
 
   void toggleStopProcessing() => stopProcessing.toggle();
+
+  @visibleForTesting
+  bool get hasLoadedRules => _listEmailRule != null;
 
   void _setUpDefaultValueRuleFilter() {
     conditionCombinerType.value = ConditionCombiner.AND;
